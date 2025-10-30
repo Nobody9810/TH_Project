@@ -161,9 +161,9 @@ const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser })
                     {/* 用户信息头部 */}
                     <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-b border-blue-200">
                       <div className="flex items-center gap-4">
-                        <AvatarDisplay user={user} size={64} />
+                        <AvatarDisplay user={user.first_name + user.last_name} size={64} />
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 text-lg">{user?.username || '用户'}</h3>
+                          <h3 className="font-semibold text-gray-900 text-lg">{user?.first_name + user.last_name|| '用户'}</h3>
                           <p className="text-sm text-gray-600 mt-1">{user?.email || '暂无邮箱'}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${

@@ -1,5 +1,3 @@
-import React from "react";
-
 
 const AvatarDisplay = ({ user, size = 40, showName = false, className = "" }) => {
   const getInitials = (username) => {
@@ -7,7 +5,7 @@ const AvatarDisplay = ({ user, size = 40, showName = false, className = "" }) =>
   };
 
   const getRoleText = (isStaff) => {
-    return isStaff ? '系统管理员' : '普通用户';
+    return isStaff ? '系统管理员' : '用户';
   };
 
   // 获取完整的头像 URL
@@ -66,7 +64,7 @@ const AvatarDisplay = ({ user, size = 40, showName = false, className = "" }) =>
       
       {showName && (
         <div className="text-left">
-          <div className="text-sm font-medium text-gray-900">{user?.username || '用户'}</div>
+          <div className="text-sm font-medium text-gray-900">{user?.first_name + user?.last_name || '用户'}</div>
           <div className="text-xs text-gray-500">{getRoleText(user?.is_staff)}</div>
         </div>
       )}

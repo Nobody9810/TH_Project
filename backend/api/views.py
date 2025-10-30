@@ -57,7 +57,7 @@ class AvatarUploadView(APIView):
     
     def patch(self, request):
         user = request.user
-        avatar_file = request.FILES.get('/media/avatars/')
+        avatar_file = request.FILES.get('avatars') 
         
         if not avatar_file:
             return Response(
