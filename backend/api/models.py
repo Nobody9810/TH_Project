@@ -1,3 +1,4 @@
+# api/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
@@ -6,7 +7,9 @@ import os
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from pdf2image import convert_from_path
-
+from django_ckeditor_5.fields import CKEditor5Field
+# 导入自定义压缩字段
+from api.fields import CompressedFileField, CompressedImageField
 
 class Destination(models.Model):
     """目的地/分类，例如：吉隆坡、仙本那"""
@@ -24,12 +27,13 @@ class Destination(models.Model):
 
 class Material(models.Model):
     """
-    统一的素材库模型，包含酒店、门票、路线规划
+    统一的素材库模型，包含酒店、景点门票、路线规划
     """
     class MaterialType(models.TextChoices):
         HOTEL = 'hotel', '酒店'
-        TICKET = 'ticket', '门票'
+        TICKET = 'ticket', '景点门票'
         ROUTE = 'route', '路线规划'
+        Transport = 'transport', '交通工具'
 
     material_type = models.CharField(
         max_length=10,
@@ -46,7 +50,7 @@ class Material(models.Model):
         related_name="materials",
         verbose_name="所属目的地"
     )
-    description = models.TextField(blank=True, verbose_name="描述/行程")
+    description = CKEditor5Field('描述/行程', config_name='extends', blank=True)
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -55,18 +59,32 @@ class Material(models.Model):
         verbose_name="价格"
     )
 
-    # 仅用于路线规划
+    # 使用普通字段，不使用自定义字段
     pdf_file = models.FileField(
         upload_to='route_pdfs/',
         null=True,
         blank=True,
         verbose_name="PDF文件 (仅路线规划)"
     )
-    # 用于酒店/门票的主图，或从PDF生成的第一页预览图
+    
     header_image = models.ImageField(
         upload_to='material_headers/',
         blank=True,
         verbose_name="头图/主图"
+    )
+    
+    video = models.FileField(
+        upload_to='hotel_videos/',
+        null=True,
+        blank=True,
+        verbose_name="酒店视频 (仅酒店类型)"
+    )
+
+    # 压缩相关信息
+    compression_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="压缩信息"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,29 +99,36 @@ class Material(models.Model):
         return f"[{self.get_material_type_display()}] {self.title}"
 
     def save(self, *args, **kwargs):
-        # 记录是否是新创建的对象
-        is_new = self._state.adding
-        # 先保存一次，确保 pdf_file 已经存储到文件系统
+        # 保存压缩数据
+        if hasattr(self, '_compression_data'):
+            if self.compression_data is None:
+                self.compression_data = {}
+            self.compression_data.update(self._compression_data)
+            delattr(self, '_compression_data')
+        
+        # 先保存一次，确保文件字段有路径
         super().save(*args, **kwargs)
-
-        # 如果是路线规划类型，并且上传了PDF，并且没有头图，则自动生成
+        
+        # 路线规划的PDF预览图生成
         if self.material_type == self.MaterialType.ROUTE and self.pdf_file and not self.header_image:
             try:
-                # self.pdf_file.path 指向文件在服务器上的绝对路径
                 images = convert_from_path(self.pdf_file.path, first_page=1, last_page=1, fmt='jpeg')
                 if images:
                     first_page_image = images[0]
-                    # 将图片保存到内存中
                     temp_thumb = ContentFile(b'', name=f"{os.path.basename(self.pdf_file.name)}.jpg")
                     first_page_image.save(temp_thumb, 'JPEG')
-                    
-                    # 将内存中的图片赋值给 header_image 字段
                     self.header_image.save(temp_thumb.name, temp_thumb, save=False)
-                    # 再次保存，只更新 header_image 字段以避免递归调用
                     super().save(update_fields=['header_image'])
             except Exception as e:
-                # 处理生成失败的情况，例如打印日志
                 print(f"无法从PDF {self.pdf_file.name} 生成预览图: {e}")
+        
+        # 清理非酒店类型的视频
+        if self.material_type != self.MaterialType.HOTEL and self.video:
+            if self.video:
+                self.video.delete(save=False)
+            self.video = None
+            super().save(update_fields=['video'])
+
 
 class MaterialImage(models.Model):
     """用于存储素材的图片库，主要用于酒店"""
@@ -113,15 +138,30 @@ class MaterialImage(models.Model):
         related_name='images',
         verbose_name="所属素材"
     )
-    image = models.ImageField(upload_to='material_gallery/', verbose_name="图片")
+    
+    image = models.ImageField(
+        upload_to='material_gallery/', 
+        verbose_name="图片"
+    )
+    
+    description = models.CharField(
+        max_length=200, 
+        blank=True, 
+        verbose_name="图片描述"
+    )
+    
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name="排序"
+    )
 
     class Meta:
         verbose_name = "素材图片"
         verbose_name_plural = "素材图片库"
+        ordering = ['order', 'id']
 
     def __str__(self):
         return f"{self.material.title} 的图片"
-
 
 
 
@@ -151,7 +191,7 @@ class SupportTicket(models.Model):
 
     # 管理员回答信息 
     is_answered = models.BooleanField(default=False, verbose_name="是否已回答")
-    answer_content = models.TextField(blank=True, null=True, verbose_name="管理员回答内容")
+    answer_content = CKEditor5Field('管理员回答内容', config_name='extends', blank=True)
     answered_by = models.ForeignKey(
         User, 
         on_delete=models.SET_NULL, 

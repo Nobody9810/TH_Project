@@ -2,6 +2,13 @@ import Header from '../components/Header'; // 导入统一的Header
 
 import React, { useEffect, useState, useCallback } from "react";
 import axiosClient from "../api/axiosClient";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination, Autoplay } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
+
+
 
 const DJANGO_API_ROOT = "http://127.0.0.1:8000/api";
 
@@ -22,20 +29,25 @@ const SkeletonCard = () => (
 // --- 子组件：素材卡片 ---
 const MaterialCard = ({ material, onSelect }) => {
   const typeStyles = {
-    hotel: { 
-      bg: "bg-gradient-to-r from-blue-500 to-blue-600", 
+    hotel: {
+      bg: "bg-gradient-to-r from-blue-500 to-blue-600",
       text: "text-white",
       badge: "from-blue-100 to-blue-200 text-blue-800"
     },
-    ticket: { 
-      bg: "bg-gradient-to-r from-green-500 to-green-600", 
+    ticket: {
+      bg: "bg-gradient-to-r from-green-500 to-green-600",
       text: "text-white",
       badge: "from-green-100 to-green-200 text-green-800"
     },
-    route: { 
-      bg: "bg-gradient-to-r from-purple-500 to-purple-600", 
+    route: {
+      bg: "bg-gradient-to-r from-purple-500 to-purple-600",
       text: "text-white",
       badge: "from-purple-100 to-purple-200 text-purple-800"
+    },
+    transport: {
+      bg: "bg-gradient-to-r from-yellow-500 to-orange-500", 
+      text: "text-white",
+      badge: "from-yellow-100 to-orange-200 text-orange-800" 
     },
   };
   const style = typeStyles[material.material_type] || {};
@@ -64,7 +76,7 @@ const MaterialCard = ({ material, onSelect }) => {
           </svg>
           {material.destination?.name || "通用"}
         </p>
-        
+
         <h2 className="text-xl font-bold text-gray-900 flex-grow line-clamp-2 mb-3 group-hover:text-blue-600 transition-colors">
           {material.title}
         </h2>
@@ -110,6 +122,26 @@ const MaterialCard = ({ material, onSelect }) => {
 const MaterialDetailModal = ({ material, onClose }) => {
   if (!material) return null;
 
+  // 获取视频文件的完整URL
+  const getVideoUrl = (videoPath) => {
+    if (!videoPath) return null;
+    // 如果视频路径已经是完整URL，直接返回
+    if (videoPath.startsWith('http')) return videoPath;
+    // 否则拼接完整的URL
+    return `${DJANGO_API_ROOT.replace('/api', '')}${videoPath}`;
+  };
+
+  const videoUrl = getVideoUrl(material.video);
+
+
+  const fixedDescription = material.description
+    ? material.description.replaceAll(
+      '/media/',
+      `${DJANGO_API_ROOT.replace('/api', '')}/media/`
+    )
+    : "暂无描述";
+
+
   return (
     <div
       role="dialog"
@@ -118,19 +150,19 @@ const MaterialDetailModal = ({ material, onClose }) => {
       onClick={onClose}
     >
       <div
-        className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-100"
+        className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white sticky top-0 z-10">
           <div>
             <h3 className="text-2xl font-bold text-gray-900">{material.title}</h3>
             <p className="text-sm text-gray-600 mt-1">
               {material.destination?.name || "通用"} • {material.material_type_display}
             </p>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-800"
             aria-label="关闭"
           >
@@ -141,8 +173,36 @@ const MaterialDetailModal = ({ material, onClose }) => {
         </div>
 
         {/* 内容 */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
-          {/* 图片库 */}
+        <div className="p-6">
+          {/* 视频展示 - 仅酒店类型显示 */}
+          {material.material_type === 'hotel' && videoUrl && (
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                酒店视频介绍
+              </h4>
+              <div className="bg-black rounded-2xl overflow-hidden shadow-lg">
+                <video
+                  controls
+                  className="w-full h-auto max-h-96 object-contain"
+                  poster={material.header_image} // 使用头图作为视频封面
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                  <source src={videoUrl} type="video/webm" />
+                  <source src={videoUrl} type="video/ogg" />
+                  您的浏览器不支持视频播放。
+                </video>
+              </div>
+              <div className="mt-3 text-sm text-gray-600 flex items-center justify-between">
+                <span>点击播放视频了解酒店详情</span>
+
+              </div>
+            </div>
+          )}
+
+          {/* 图片库 - 仅酒店类型显示 */}
           {material.material_type === 'hotel' && material.images?.length > 0 && (
             <div className="mb-8">
               <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -151,16 +211,26 @@ const MaterialDetailModal = ({ material, onClose }) => {
                 </svg>
                 酒店图库
               </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {material.images.map(img => (
-                  <img 
-                    key={img.id} 
-                    src={img.image} 
-                    alt="gallery" 
-                    className="rounded-xl object-cover h-32 w-full shadow-md hover:shadow-lg transition-shadow cursor-pointer" 
-                  />
+               {/* Swiper - react轮播图（carousel）plugin*/}
+              <Swiper
+                modules={[Navigation, Pagination, Autoplay]}
+                spaceBetween={20}
+                slidesPerView={1}
+                navigation
+                pagination={{ clickable: true }}
+                autoplay={{ delay: 3000, disableOnInteraction: false }}
+                className="rounded-2xl shadow-lg"
+              >
+                {material.images.map((img) => (
+                  <SwiperSlide key={img.id}>
+                    <img
+                      src={img.image}
+                      alt="gallery"
+                      className="rounded-2xl object-cover w-full max-h-[400px] cursor-pointer"
+                    />
+                  </SwiperSlide>
                 ))}
-              </div>
+              </Swiper>
             </div>
           )}
 
@@ -208,9 +278,17 @@ const MaterialDetailModal = ({ material, onClose }) => {
                   </svg>
                   详细描述
                 </h4>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {material.description || "暂无描述"}
-                </p>
+                {/* <div
+                  className="prose prose-gray max-w-none"
+                  dangerouslySetInnerHTML={{ __html: material.description || "暂无描述" }}
+                /> */}
+
+
+                <div
+                  className="prose prose-gray max-w-none"
+                  dangerouslySetInnerHTML={{ __html: fixedDescription }}
+                />
+
               </div>
             </div>
           </div>
@@ -218,8 +296,8 @@ const MaterialDetailModal = ({ material, onClose }) => {
 
         {/* 底部操作 */}
         <div className="p-6 bg-gradient-to-r from-gray-50 to-white border-t border-gray-200 flex justify-end gap-3">
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2"
           >
             关闭
@@ -293,7 +371,7 @@ export default function Materials() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 to-indigo-100/50">
       {/* 使用统一的Header */}
-      <Header 
+      <Header
       />
       <div className="max-w-7xl mx-auto p-6">
         {/* 头部 */}
@@ -333,10 +411,11 @@ export default function Materials() {
               >
                 <option value="all">所有类型</option>
                 <option value="hotel">酒店</option>
-                <option value="ticket">门票</option>
+                <option value="ticket">景点门票</option>
                 <option value="route">路线规划</option>
+                <option value="transport">交通工具</option>
               </select>
-              
+
               <select
                 value={selectedDestination}
                 onChange={(e) => setSelectedDestination(e.target.value)}
@@ -347,9 +426,9 @@ export default function Materials() {
                   <option key={d.id} value={d.slug}>{d.name}</option>
                 ))}
               </select>
-              
-              <button 
-                onClick={handleResetFilters} 
+
+              <button
+                onClick={handleResetFilters}
                 className="px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,7 +471,7 @@ export default function Materials() {
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">未找到匹配的素材</h3>
                   <p className="text-gray-600 mb-4">请尝试调整您的筛选条件或搜索关键词</p>
-                  <button 
+                  <button
                     onClick={handleResetFilters}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >

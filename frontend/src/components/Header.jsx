@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import AvatarDisplay from './AvatarDisplay';
-import logo from "../assets/logo.jpg"; 
-const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser }) => {
+import logo from "../assets/logo.jpg";
+const Header = ({ title, subtitle = true, user: propUser }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(propUser);
@@ -80,19 +80,19 @@ const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser })
           {/* 左侧：Logo和导航 */}
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <div 
+            <div
               className="flex items-center gap-3 cursor-pointer"
               onClick={() => navigate('/dashboard')}
             >
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <img
-            src={logo}
-            alt="Cherry Go Logo"
-            className="h-10 w-10 rounded-md shadow-sm"
-          />
+                  src={logo}
+                  alt="Cherry Go Logo"
+                  className="h-10 w-10 rounded-md shadow-sm"
+                />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">TH 企业平台</h1>
+                <h1 className="text-xl font-bold text-gray-900">Trippal Holiday</h1>
                 <p className="text-xs text-gray-600">素材库 & 知识库管理系统</p>
               </div>
             </div>
@@ -103,11 +103,10 @@ const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser })
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
-                    isActivePath(item.path)
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActivePath(item.path)
                       ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-lg">{item.icon}</span>
                   {item.label}
@@ -123,7 +122,7 @@ const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser })
               最后更新: {lastSync ? formatDate(lastSync) : '—'}
             </div>
 
-            
+
 
             {/* 用户头像和下拉菜单 */}
             <div className="relative">
@@ -137,10 +136,10 @@ const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser })
                   showName={true}
                   className="hidden lg:flex"
                 />
-                <svg 
+                <svg
                   className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -151,26 +150,29 @@ const Header = ({ title, subtitle, showNewTicketButton = true, user: propUser })
               {isOpen && (
                 <>
                   {/* 背景遮罩 */}
-                  <div 
+                  <div
                     className="fixed inset-0 z-40"
                     onClick={() => setIsOpen(false)}
                   ></div>
-                  
+
                   {/* 菜单内容 */}
                   <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
                     {/* 用户信息头部 */}
                     <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-b border-blue-200">
                       <div className="flex items-center gap-4">
-                        <AvatarDisplay user={user.first_name + user.last_name} size={64} />
+                <AvatarDisplay
+                  user={user}
+                  size={80}
+                />
+
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 text-lg">{user?.first_name + user.last_name|| '用户'}</h3>
+                          <h3 className="font-semibold text-gray-900 text-lg">{user?.first_name + user.last_name || user.username}</h3>
                           <p className="text-sm text-gray-600 mt-1">{user?.email || '暂无邮箱'}</p>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              user?.is_staff 
-                                ? 'bg-emerald-100 text-emerald-800' 
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${user?.is_staff
+                                ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-blue-100 text-blue-800'
-                            }`}>
+                              }`}>
                               {getRoleText(user?.is_staff)}
                             </span>
                             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">

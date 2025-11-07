@@ -15,8 +15,6 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -42,8 +40,125 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'api',
+    'django_ckeditor_5',
+
 
 ]
+
+
+# CKEditor 5 专用配置 
+customColorPalette = [
+        {
+            'color': 'hsl(4, 90%, 58%)',
+            'label': 'Red'
+        },
+        {
+            'color': 'hsl(340, 82%, 52%)',
+            'label': 'Pink'
+        },
+        {
+            'color': 'hsl(291, 64%, 42%)',
+            'label': 'Purple'
+        },
+        {
+            'color': 'hsl(262, 52%, 47%)',
+            'label': 'Deep Purple'
+        },
+        {
+            'color': 'hsl(231, 48%, 48%)',
+            'label': 'Indigo'
+        },
+        {
+            'color': 'hsl(207, 90%, 54%)',
+            'label': 'Blue'
+        },
+    ]
+
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': {
+            'items': ['heading', '|', 'bold', 'italic', 'link',
+                      'bulletedList', 'numberedList', 'blockQuote', 'imageUpload', ],
+                    }
+
+    },
+    'extends': {
+        'blockToolbar': [
+            'paragraph', 'heading1', 'heading2', 'heading3',
+            '|',
+            'bulletedList', 'numberedList',
+            '|',
+            'blockQuote',
+        ],
+        'toolbar': {
+            'items': ['heading', '|', 'outdent', 'indent', '|', 'bold', 'italic', 'link', 'underline', 'strikethrough',
+                      'code','subscript', 'superscript', 'highlight', '|', 'codeBlock', 'sourceEditing', 'insertImage',
+                    'bulletedList', 'numberedList', 'todoList', '|',  'blockQuote', 'imageUpload', '|',
+                    'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', 'mediaEmbed', 'removeFormat',
+                    'insertTable',
+                    ],
+            'shouldNotGroupWhenFull': 'true'
+        },
+        'image': {
+            'toolbar': ['imageTextAlternative', '|', 'imageStyle:alignLeft',
+                        'imageStyle:alignRight', 'imageStyle:alignCenter', 'imageStyle:side',  '|'],
+            'styles': [
+                'full',
+                'side',
+                'alignLeft',
+                'alignRight',
+                'alignCenter',
+            ]
+
+        },
+        'table': {
+            'contentToolbar': [ 'tableColumn', 'tableRow', 'mergeTableCells',
+            'tableProperties', 'tableCellProperties' ],
+            'tableProperties': {
+                'borderColors': customColorPalette,
+                'backgroundColors': customColorPalette
+            },
+            'tableCellProperties': {
+                'borderColors': customColorPalette,
+                'backgroundColors': customColorPalette
+            }
+        },
+        'heading' : {
+            'options': [
+                { 'model': 'paragraph', 'title': 'Paragraph', 'class': 'ck-heading_paragraph' },
+                { 'model': 'heading1', 'view': 'h1', 'title': 'Heading 1', 'class': 'ck-heading_heading1' },
+                { 'model': 'heading2', 'view': 'h2', 'title': 'Heading 2', 'class': 'ck-heading_heading2' },
+                { 'model': 'heading3', 'view': 'h3', 'title': 'Heading 3', 'class': 'ck-heading_heading3' }
+            ]
+        }
+    },
+    'list': {
+        'properties': {
+            'styles': 'true',
+            'startIndex': 'true',
+            'reversed': 'true',
+        }
+    }
+}
+
+
+
+# 文件压缩配置
+FILE_COMPRESSION_CONFIG = {
+    'IMAGE': {
+        'MAX_WIDTH': 1920,
+        'MAX_HEIGHT': 1080, 
+        'QUALITY': 85,
+        'MIN_SIZE_TO_COMPRESS_MB': 0.5,  # 大于此大小的图片才压缩
+    },
+    'VIDEO': {
+        'MAX_WIDTH': 1280,
+        'MAX_HEIGHT': 720,
+        'CRF': 23,
+        'MIN_SIZE_TO_COMPRESS_MB': 2,  # 大于此大小的视频才压缩
+    }
+}
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -83,8 +198,8 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'th_project',
-        'USER': 'django_user',
+        'NAME': 'TH_Project',
+        'USER': 'root',
         'PASSWORD': '112233',
         'HOST': 'localhost',
         'PORT': '3306',
@@ -125,7 +240,7 @@ SIMPLE_JWT = {
 }
 
 STATIC_URL = '/static/'
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -150,11 +265,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kuala_Lumpur'  # 或者 'Asia/Shanghai'
+USE_TZ = True
 
 USE_I18N = True
 
-USE_TZ = True
+
 
 
 # Static files (CSS, JavaScript, Images)
@@ -179,3 +295,38 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 PDF_FONT_DIR = os.path.join(BASE_DIR, 'static/fonts')
 PDF_FONT_PATH = os.path.join(PDF_FONT_DIR, 'Alibaba-PuHuiTi-Regular.ttf')
+
+
+
+
+
+# ==================== Lark 飞书配置 ====================
+#Webhook URL（必填）
+LARK_WEBHOOK_URL = 'https://open.larksuite.com/open-apis/bot/v2/hook/7d463bd0-8b4c-4db3-b335-834ff450aa93'
+
+# 签名密钥（可选，如果启用了签名验证则必填）
+LARK_WEBHOOK_SECRET = 'your-secret-key'
+
+# 通知开关（开发环境可以设为 False）
+LARK_ENABLE_NOTIFICATIONS = True
+
+# 前端URL（用于构造详情链接）
+FRONTEND_URL = 'http://localhost:5173'
+# 或本地开发: FRONTEND_URL = 'http://localhost:3000'
+
+# 日志配置（可选）
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'api.lark_notification': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}

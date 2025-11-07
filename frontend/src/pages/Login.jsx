@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axiosClient from '../api/axiosClient';
-
+import logo from "../assets/logo.jpg";
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -11,7 +11,7 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
+
     try {
       const res = await axiosClient.post('auth/token/', { username, password });
       localStorage.setItem('access', res.data.access);
@@ -30,9 +30,13 @@ export default function Login() {
       <div className="max-w-md w-full">
         {/* Logo和标题区域 */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
-            <span className="text-white text-2xl font-bold">TH</span>
-          </div>
+          
+            <img
+              src={logo}
+              alt="Cherry Go Logo"
+              className="mx-auto w-25 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4"
+            />
+
           <h1 className="text-3xl font-bold text-gray-900 mb-2">TH 企业平台</h1>
           <p className="text-gray-600">素材库 & 知识库管理系统</p>
         </div>

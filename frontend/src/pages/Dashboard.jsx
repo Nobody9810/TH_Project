@@ -279,7 +279,7 @@ export default function ProfessionalDashboard() {
                     title={material.title}
                     subtitle={material.description || "暂无描述"}
                     meta={`${formatDate(material.created_at)} • ${material.material_type_display || material.material_type}`}
-                    onClick={() => navigate(`/materials/${material.id}`)}
+                    onClick={() => navigate(`/materials`)}
                   />
                 ))
               ) : (
@@ -314,7 +314,7 @@ export default function ProfessionalDashboard() {
                     subtitle={ticket.category_display || getCategoryLabel(ticket.category)}
                     meta={formatDate(ticket.created_at)}
                     status={ticket.is_answered ? 'answered' : 'unanswered'}
-                    onClick={() => navigate(`/supportticket/${ticket.id}`)}
+                    onClick={() => navigate(`/supportticket`)}
                   />
                 ))
               ) : (
