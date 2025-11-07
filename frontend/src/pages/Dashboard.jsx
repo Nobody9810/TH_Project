@@ -49,7 +49,7 @@ const StatCard = ({ title, value, description, icon, color = "blue", onClick, lo
   };
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`bg-gradient-to-br ${colorClasses[color]} rounded-2xl p-6 text-white cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl`}
     >
@@ -78,7 +78,7 @@ const ListItem = ({ title, subtitle, meta, status, onClick, type = "default" }) 
   };
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className="group p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer bg-white transform hover:-translate-y-1"
     >
@@ -113,7 +113,7 @@ const Section = ({ title, action, children, className = "" }) => (
     <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
       <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
       {action && (
-        <button 
+        <button
           onClick={action.onClick}
           className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
         >
@@ -134,7 +134,7 @@ const Section = ({ title, action, children, className = "" }) => (
 
 export default function ProfessionalDashboard() {
   const navigate = useNavigate();
-  
+
   const [overview, setOverview] = useState({
     materialCount: 0,
     totalTicketCount: 0,
@@ -216,7 +216,7 @@ export default function ProfessionalDashboard() {
   useEffect(() => {
     fetchOverview();
     fetchUserInfo();
-    const interval = setInterval(fetchOverview, 5 * 60 * 1000); 
+    const interval = setInterval(fetchOverview, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -224,12 +224,12 @@ export default function ProfessionalDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/60 to-indigo-100/60">
       {/* 头部导航 */}
-      <Header 
+      <Header
         user={user}
       />
-    
+
       {/* 主要内容 */}
-     <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 统计卡片网格 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatCard
@@ -277,7 +277,13 @@ export default function ProfessionalDashboard() {
                   <ListItem
                     key={material.id}
                     title={material.title}
-                    subtitle={material.description || "暂无描述"}
+                    subtitle={
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: material.description || "<span class='text-gray-400'>暂无描述</span>",
+                        }}
+                      />
+                    }
                     meta={`${formatDate(material.created_at)} • ${material.material_type_display || material.material_type}`}
                     onClick={() => navigate(`/materials`)}
                   />

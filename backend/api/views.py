@@ -15,49 +15,19 @@ from .serializers import (
 from django.http import FileResponse, HttpResponse
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from django.shortcuts import get_object_or_404
-# from reportlab.pdfbase import pdfmetrics
-# from reportlab.pdfbase.ttfonts import TTFont 
+
 from django.conf import settings
 import os
 import requests
 from io import BytesIO 
-# from reportlab.lib import colors
-# from reportlab.pdfgen import canvas
-# from reportlab.lib.pagesizes import letter,A4
-# from reportlab.lib.utils import simpleSplit
-# from reportlab.platypus import Paragraph, Spacer, Image
-# from reportlab.lib.styles import getSampleStyleSheet
+
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
-
-
-
-
-
-
-
-
-
 from xhtml2pdf import pisa
-
-
 import re
 
 
-
-FONT_NAME = 'PuHuiTi'
-FONT_PATH = settings.PDF_FONT_PATH 
-FONT_REGISTERED = False 
-
-try:
-    if os.path.exists(FONT_PATH):
-        pdfmetrics.registerFont(TTFont(FONT_NAME, str(FONT_PATH)))
-        FONT_REGISTERED = True
-    else:
-        print(f"⚠️ 严重警告：ReportLab 字体文件未找到。路径: {FONT_PATH}")
-except Exception as e:
-    print(f"❌ 严重错误：ReportLab 字体注册失败。错误: {e}")
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
@@ -110,6 +80,10 @@ class AvatarUploadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class MaterialPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class MaterialViewSet(viewsets.ModelViewSet):
     """
@@ -123,7 +97,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['title', 'description', 'destination__name']
     permission_classes = [IsAuthenticatedOrReadOnly]
-
+    pagination_class = MaterialPagination 
     def get_queryset(self):
         queryset = Material.objects.all().select_related('destination').prefetch_related('images')
         
@@ -164,285 +138,6 @@ class MaterialViewSet(viewsets.ModelViewSet):
         methods=['get'], 
         url_path='download-pdf',
         permission_classes=[AllowAny])
-
-
-    # def download_pdf(self, request, pk=None):
-    #     """使用 xhtml2pdf 高保真导出素材详情为 PDF（支持酒店图库和CKEditor内容）"""
-    #     material = get_object_or_404(Material, pk=pk)
-
-    #     # ===== 1. 检查字体文件 =====
-    #     font_path = settings.PDF_FONT_PATH
-    #     if not os.path.exists(font_path):
-    #         return HttpResponse("PDF生成失败：字体文件未找到", status=500)
-        
-    #     # 获取字体的绝对路径
-    #     font_abs_path = os.path.abspath(font_path)
-
-    #     # ===== 2. 准备数据 =====
-    #     site_url = request.build_absolute_uri('/')[:-1]
-    #     header_img_url = site_url + material.header_image.url if material.header_image else None
-        
-    #     # 获取酒店图库
-    #     gallery_images = []
-    #     if material.material_type == 'hotel':
-    #         gallery_images = [
-    #             {
-    #                 'url': site_url + img.image.url,
-    #                 'description': img.description or ''
-    #             } 
-    #             for img in material.images.all()
-    #         ]
-
-    #     # 处理CKEditor内容 - 确保图片路径完整
-    #     description_html = material.description or ''
-    #     if description_html:
-    #         description_html = description_html.replace('src="/media/', f'src="{site_url}/media/')
-    #         description_html = description_html.replace("src='/media/", f"src='{site_url}/media/")
-
-    #     # ===== 3. 构造 HTML 模板（使用绝对路径的字体）=====
-    #     html = f"""
-    #     <!DOCTYPE html>
-    #     <html>
-    #     <head>
-    #         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    #         <style>
-    #             @page {{
-    #                 size: A4;
-    #                 margin: 2cm 1.5cm;
-    #             }}
-    #             @font-face {{
-    #                 font-family: ChineseFont;
-    #                 src: url("file://{font_abs_path}");
-    #             }}
-    #             * {{
-    #                 font-family: ChineseFont;
-    #             }}
-    #             body {{
-    #                 color: #222;
-    #                 line-height: 1.6;
-    #                 font-size: 11pt;
-    #             }}
-    #             h1 {{
-    #                 color: #2C3E50;
-    #                 font-size: 20pt;
-    #                 margin-bottom: 15px;
-    #                 border-bottom: 3px solid #3498db;
-    #                 padding-bottom: 8px;
-    #             }}
-    #             h2 {{
-    #                 color: #34495E;
-    #                 font-size: 14pt;
-    #                 border-bottom: 2px solid #95a5a6;
-    #                 padding-bottom: 4px;
-    #                 margin-top: 25px;
-    #                 margin-bottom: 12px;
-    #             }}
-    #             h3 {{
-    #                 color: #555;
-    #                 font-size: 12pt;
-    #                 margin-top: 15px;
-    #             }}
-    #             img {{
-    #                 max-width: 100%;
-    #                 height: auto;
-    #                 margin: 10px 0;
-    #                 border-radius: 6px;
-    #             }}
-    #             .header-image {{
-    #                 width: 100%;
-    #                 height: 250px;
-    #                 object-fit: cover;
-    #                 border-radius: 8px;
-    #                 margin-bottom: 20px;
-    #                 display: block;
-    #             }}
-    #             .info-box {{
-    #                 background: #f8f9fa;
-    #                 border-left: 4px solid #3498db;
-    #                 padding: 12px 15px;
-    #                 margin: 15px 0;
-    #                 border-radius: 4px;
-    #             }}
-    #             .info-box p {{
-    #                 margin: 5px 0;
-    #             }}
-    #             .gallery {{
-    #                 margin-top: 20px;
-    #             }}
-    #             .gallery-item {{
-    #                 margin-bottom: 20px;
-    #                 page-break-inside: avoid;
-    #             }}
-    #             .gallery-item img {{
-    #                 width: 100%;
-    #                 height: 200px;
-    #                 object-fit: cover;
-    #                 border: 1px solid #ddd;
-    #                 border-radius: 6px;
-    #                 display: block;
-    #             }}
-    #             .description img {{
-    #                 width: 100%;
-    #                 height: 180px;
-    #                 object-fit: cover;
-    #                 border-radius: 6px;
-    #                 margin: 15px 0;
-    #                 display: block;
-    #             }}
-    #             .gallery-item p {{
-    #                 font-size: 9pt;
-    #                 color: #666;
-    #                 margin-top: 5px;
-    #                 font-style: italic;
-    #             }}
-    #             .description {{
-    #                 margin-top: 20px;
-    #                 text-align: justify;
-    #             }}
-    #             .description p {{
-    #                 margin: 8px 0;
-    #             }}
-    #             .description ul, .description ol {{
-    #                 margin: 10px 0;
-    #                 padding-left: 25px;
-    #             }}
-    #             .description li {{
-    #                 margin: 5px 0;
-    #             }}
-    #             .description table {{
-    #                 width: 100%;
-    #                 border-collapse: collapse;
-    #                 margin: 15px 0;
-    #             }}
-    #             .description table td, .description table th {{
-    #                 border: 1px solid #ddd;
-    #                 padding: 8px;
-    #                 font-size: 10pt;
-    #             }}
-    #             .description table th {{
-    #                 background-color: #f2f2f2;
-    #                 font-weight: bold;
-    #             }}
-    #             .description blockquote {{
-    #                 border-left: 3px solid #ccc;
-    #                 padding-left: 15px;
-    #                 color: #666;
-    #                 font-style: italic;
-    #                 margin: 15px 0;
-    #             }}
-    #             .description strong {{
-    #                 font-weight: bold;
-    #             }}
-    #             .description em {{
-    #                 font-style: italic;
-    #             }}
-    #             .footer {{
-    #                 margin-top: 40px;
-    #                 padding-top: 15px;
-    #                 border-top: 1px solid #ddd;
-    #                 font-size: 9pt;
-    #                 color: #999;
-    #             }}
-    #             .price {{
-    #                 color: #e74c3c;
-    #                 font-size: 13pt;
-    #                 font-weight: bold;
-    #             }}
-    #         </style>
-    #     </head>
-    #     <body>
-    #         <h1>{material.title}</h1>
-
-    #         <div class="info-box">
-    #             <p><strong>素材类型：</strong> {material.get_material_type_display()}</p>
-    #             <p><strong>目的地：</strong> {material.destination.name if material.destination else '通用'}</p>
-    #             <p><strong>创建时间：</strong> {material.created_at.strftime('%Y年%m月%d日 %H:%M')}</p>
-    #             {f'<p><strong>价格：</strong> <span class="price">RM {material.price:.2f}</span></p>' if material.price else ''}
-    #         </div>
-
-    #         {f'<img src="{header_img_url}" class="header-image" />' if header_img_url else ''}
-
-    #         <h2>详细描述</h2>
-    #         <div class="description">
-    #             {description_html if description_html else '<p style="color: #999;">暂无详细描述</p>'}
-    #         </div>
-
-    #         {f'''
-    #         <h2>酒店图库 ({len(gallery_images)} 张图片)</h2>
-    #         <div class="gallery">
-    #             {"".join([f"""
-    #             <div class="gallery-item">
-    #                 <img src="{img['url']}" />
-    #                 {f"<p>{img['description']}</p>" if img['description'] else ""}
-    #             </div>
-    #             """ for img in gallery_images])}
-    #         </div>
-    #         ''' if gallery_images else ''}
-
-    #         <div class="footer">
-    #             <p>生成时间：{timezone.now().strftime('%Y年%m月%d日 %H:%M:%S')}</p>
-    #             <p>本文档由系统自动生成</p>
-    #         </div>
-    #     </body>
-    #     </html>
-    #     """
-
-    #     # ===== 4. 关键：link_callback 处理资源（字体和图片）=====
-    #     def link_callback(uri, rel):
-    #         """
-    #         将URL转换为文件系统路径
-    #         这是让 xhtml2pdf 找到字体和图片的关键！
-    #         """
-    #         # 处理字体文件
-    #         if uri.startswith('file://'):
-    #             return uri.replace('file://', '')
-            
-    #         # 处理图片
-    #         if uri.startswith('http://') or uri.startswith('https://'):
-    #             if '/media/' in uri:
-    #                 file_path = uri.split('/media/')[-1]
-    #                 full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-    #             else:
-    #                 return uri
-    #         elif uri.startswith('/media/'):
-    #             file_path = uri.replace('/media/', '')
-    #             full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-    #         else:
-    #             return uri
-            
-    #         if os.path.exists(full_path):
-    #             return full_path
-    #         else:
-    #             print(f"⚠️ 文件未找到: {full_path}")
-    #             return uri
-
-    #     # ===== 5. 生成 PDF =====
-    #     response = HttpResponse(content_type='application/pdf')
-    #     # 文件名格式：类型+标题+ID
-    #     filename = f"{material.get_material_type_display()}_{material.title}_{material.id}.pdf"
-    #     # 清理文件名中的特殊字符，但保留中文
-    #     filename = re.sub(r'[<>:"/\\|?*]', '', filename).strip()
-        
-    #     # 使用 URL 编码处理中文文件名（支持各种浏览器）
-    #     from urllib.parse import quote
-    #     encoded_filename = quote(filename)
-        
-    #     # RFC 5987 标准格式，兼容所有浏览器
-    #     response['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
-
-    #     # 创建PDF - 关键参数
-    #     pisa_status = pisa.CreatePDF(
-    #         html.encode('UTF-8'),  # 明确编码为 UTF-8
-    #         dest=response,
-    #         link_callback=link_callback,  # 使用 callback 处理资源
-    #         encoding='UTF-8'
-    #     )
-
-    #     if pisa_status.err:
-    #         print(f"❌ PDF生成错误: {pisa_status.err}")
-    #         return HttpResponse("PDF生成失败，请查看日志", status=500)
-
-    #     return response
 
 
     def download_pdf(self, request, pk=None):
@@ -751,7 +446,7 @@ class DestinationViewSet(viewsets.ReadOnlyModelViewSet):
 
 # 自定义分页类
 class SupportTicketPagination(PageNumberPagination):
-    page_size = 10
+    page_size = 12
     page_size_query_param = 'page_size'
     max_page_size = 100
 
