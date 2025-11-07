@@ -1,5 +1,5 @@
-/home/li/TH_Project/backend/static
-/home/li/TH_Project/backend/media
-/home/li/TH_Project/backend/staticfiles
-/home/li/TH_Project/frontend/node_modules
-
+backend/static/
+backend/media/
+backend/staticfiles/
+frontend/node_modules/
+backend/venv/
