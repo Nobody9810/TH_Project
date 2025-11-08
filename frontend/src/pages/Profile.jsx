@@ -5,6 +5,13 @@ import axiosClient from "../api/axiosClient";
 import AvatarDisplay from '../components/AvatarDisplay';
 import Header from '../components/Header'; // 导入统一的Header
 // 专业加载指示器
+
+const getImageUrl = (url) => {
+  if (!url) return '';
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}t=${Date.now()}`;
+};
+
 const LoadingSpinner = ({ size = "medium" }) => {
   const sizeClasses = {
     small: "h-4 w-4",
@@ -45,30 +52,46 @@ const AvatarUpload = ({ user, onAvatarUpdate, onError, size = 120 }) => {
       const formData = new FormData();
       formData.append('avatars', file);
       
-      const uploadClient = axios.create({
-        baseURL: 'http://127.0.0.1:8000/api',
+      // ✅ 修复1: 使用 axiosClient 而不是硬编码的地址
+      const response = await axiosClient.patch('me/avatar/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-
-      // 添加 token 拦截器
-      uploadClient.interceptors.request.use((config) => {
-        const token = localStorage.getItem('access');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      });
-
-      const response = await uploadClient.patch('me/avatar/', formData);
 
       console.log('上传成功:', response.data);
-      onAvatarUpdate?.(response.data);
+      
+      // ✅ 修复2: 添加时间戳防止缓存
+      const updatedUser = {
+        ...response.data,
+        profile: {
+          ...response.data.profile,
+          avatar: response.data.profile?.avatar 
+            ? `${response.data.profile.avatar}?t=${Date.now()}` 
+            : null
+        }
+      };
+      
+      onAvatarUpdate?.(updatedUser);
       onError?.({ type: "success", text: "头像上传成功！" });
+      
+      // ✅ 修复3: 可选 - 延迟刷新页面确保图片更新
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('上传失败:', error);
+      onError?.({ 
+        type: "error", 
+        text: error.response?.data?.message || '上传失败，请重试' 
+      });
     } finally {
       setUploading(false);
-      // 清空文件输入
       event.target.value = '';
     }
   };
+
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -87,7 +110,18 @@ const AvatarUpload = ({ user, onAvatarUpdate, onError, size = 120 }) => {
       <div className="relative inline-block">
         {/* 使用 AvatarDisplay 组件显示头像 */}
         <div onClick={handleAvatarClick} className="cursor-pointer">
-          <AvatarDisplay user={user} size={size} />
+          <AvatarDisplay 
+            user={{
+              ...user,
+              profile: {
+                ...user?.profile,
+                avatar: user?.profile?.avatar 
+                  ? getImageUrl(user.profile.avatar)
+                  : null
+              }
+            }} 
+            size={size} 
+          />
         </div>
         
         {/* 上传覆盖层 */}
@@ -283,7 +317,13 @@ export default function Profile() {
   // 头像更新后的回调函数
   const handleAvatarUpdate = (updatedUser) => {
     console.log('头像更新后的用户数据:', updatedUser);
+    
+    // ✅ 修复5: 更新本地状态
     setUser(updatedUser);
+    
+    // ✅ 修复6: 可选 - 强制刷新 Header 中的头像
+    // 触发父组件重新渲染
+    setStatus({ type: "success", text: "头像更新成功！" });
   };
 
   // 头像上传错误处理
