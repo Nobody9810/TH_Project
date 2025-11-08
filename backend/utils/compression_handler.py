@@ -9,7 +9,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-
+FFMPEG_PATH = '/usr/bin/ffmpeg'
 class ImageCompressionHandler:
     """图片压缩处理器"""
     
@@ -132,7 +132,7 @@ class VideoCompressionHandler:
             
             # 构建ffmpeg命令
             cmd = [
-                'ffmpeg',
+                '/usr/bin/ffmpeg',
                 '-i', temp_input_path,
                 '-vf', f'scale=min({max_width}\,iw):min({max_height}\,ih):force_original_aspect_ratio=decrease',
                 '-c:v', 'libx264',
