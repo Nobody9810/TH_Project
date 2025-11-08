@@ -10,6 +10,12 @@ import "swiper/css/pagination";
 
 
 const DJANGO_API_ROOT = "https://api.trippalholiday.my/api";
+const getImageUrl = (url) => {
+  if (!url) return '';
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}t=${Date.now()}`;
+};
+
 
 // --- 子组件：骨架加载卡片 ---
 const SkeletonCard = () => (
@@ -56,9 +62,10 @@ const MaterialCard = ({ material, onSelect }) => {
       {/* 图片区域 */}
       <div className="h-48 w-full relative overflow-hidden">
         <img
-          src={material.header_image || "https://via.placeholder.com/400x300.png?text=No+Image"}
+          src={getImageUrl(material.header_image) || "https://via.placeholder.com/400x300.png?text=No+Image"}
           alt={material.title}
           className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
+          loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         <span className={`absolute top-3 right-3 px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${style.badge} backdrop-blur-sm`}>
@@ -184,9 +191,10 @@ const MaterialDetailModal = ({ material, onClose }) => {
               </h4>
               <div className="bg-black rounded-2xl overflow-hidden shadow-lg">
                 <video
+                  key={`${videoUrl}?t=${Date.now()}`}
                   controls
                   className="w-full h-auto max-h-96 object-contain"
-                  poster={material.header_image} // 使用头图作为视频封面
+                  poster={getImageUrl(material.header_image)}
                 >
                   <source src={videoUrl} type="video/mp4" />
                   <source src={videoUrl} type="video/webm" />
@@ -219,13 +227,15 @@ const MaterialDetailModal = ({ material, onClose }) => {
                 pagination={{ clickable: true }}
                 autoplay={{ delay: 3000, disableOnInteraction: false }}
                 className="rounded-2xl shadow-lg"
+                key={`swiper-${Date.now()}`}
               >
                 {material.images.map((img) => (
                   <SwiperSlide key={img.id}>
                     <img
-                      src={img.image}
+                      src={getImageUrl(img.image)}
                       alt="gallery"
                       className="rounded-2xl object-cover w-full max-h-[400px] cursor-pointer"
+                      loading="lazy"
                     />
                   </SwiperSlide>
                 ))}
@@ -331,6 +341,8 @@ export default function Materials() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedDestination, setSelectedDestination] = useState("all");
 
+  const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
+
   const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -339,6 +351,8 @@ export default function Materials() {
     if (query) params.append('search', query);
     if (selectedType !== 'all') params.append('material_type', selectedType);
     if (selectedDestination !== 'all') params.append('destination__slug', selectedDestination);
+
+    params.append('_t', Date.now());
 
     const fetchMaterials = axiosClient.get(`materials/?${params.toString()}`);
     const fetchDestinations = axiosClient.get("destinations/");
@@ -355,7 +369,7 @@ export default function Materials() {
       .finally(() => {
         setLoading(false);
       });
-  }, [query, selectedType, selectedDestination]);
+ }, [query, selectedType, selectedDestination, refreshTimestamp]);
 
   useEffect(() => {
     fetchData();
