@@ -9,8 +9,7 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 
-
-const DJANGO_API_ROOT = "http://127.0.0.1:8000/api";
+const DJANGO_API_ROOT = "https://api.trippalholiday.my/api";
 
 // --- 子组件：骨架加载卡片 ---
 const SkeletonCard = () => (

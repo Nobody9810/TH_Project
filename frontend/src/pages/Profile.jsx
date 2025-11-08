@@ -46,7 +46,7 @@ const AvatarUpload = ({ user, onAvatarUpdate, onError, size = 120 }) => {
       formData.append('avatars', file);
       
       const uploadClient = axios.create({
-        baseURL: 'http://127.0.0.1:8000/api',
+        baseURL: 'https://api.trippalholiday.my/api',
       });
 
       // 添加 token 拦截器
