@@ -19,123 +19,181 @@ logger = logging.getLogger(__name__)
 def compress_files_before_save(sender, instance, **kwargs):
     """
     在保存模型之前压缩文件
+    
+    ✅ 修复：
+    1. 检查文件是否是新上传的
+    2. 避免重复压缩
+    3. 正确处理 Django 的临时文件
     """
-    # 检查是否是新建对象
-    if instance.pk is None:
-        # 新建对象，处理文件压缩
-        
-        # 处理 Material 的头图
-        if hasattr(instance, 'header_image') and instance.header_image:
-            try:
+    
+    # ✅ 修复1: 获取旧实例，避免重复压缩
+    try:
+        if instance.pk:
+            old_instance = sender.objects.get(pk=instance.pk)
+        else:
+            old_instance = None
+    except sender.DoesNotExist:
+        old_instance = None
+    
+    # 处理 Material 的头图
+    if hasattr(instance, 'header_image') and instance.header_image:
+        try:
+            # ✅ 修复2: 检查是否是新上传的文件
+            # 只有当文件发生变化时才压缩
+            should_compress = False
+            
+            if old_instance is None:
+                # 新建对象
+                should_compress = True
+            elif not old_instance.header_image:
+                # 之前没有文件，现在有了
+                should_compress = True
+            elif old_instance.header_image.name != instance.header_image.name:
+                # 文件名不同，说明是新上传的
+                should_compress = True
+            
+            if should_compress and hasattr(instance.header_image, 'file'):
                 print(f"🔍 开始压缩 Material 头图: {instance.header_image.name}")
                 
-                # 读取文件内容
-                instance.header_image.open('rb')
-                original_content = instance.header_image.read()
-                instance.header_image.close()
-                
-                print(f"🔍 读取头图内容: {len(original_content)} bytes")
-                
-                # 处理压缩
-                compressed_file, compression_info = FileCompressionManager.process_uploaded_file(
-                    original_content, 
-                    instance.header_image.name,
-                    'image'
-                )
-                
-                if compressed_file and compression_info:
-                    print(f"✅ Material 头图压缩成功: {compression_info['compression_ratio']:.1f}%")
+                # ✅ 修复3: 安全地读取文件内容
+                try:
+                    # 先检查文件是否可读
+                    if hasattr(instance.header_image.file, 'read'):
+                        instance.header_image.file.seek(0)
+                        original_content = instance.header_image.file.read()
+                        
+                        print(f"🔍 读取头图内容: {len(original_content)/1024/1024:.2f}MB")
+                        
+                        # 处理压缩
+                        compressed_file, compression_info = FileCompressionManager.process_uploaded_file(
+                            original_content, 
+                            instance.header_image.name,
+                            'image'
+                        )
+                        
+                        if compressed_file and compression_info:
+                            print(f"✅ Material 头图压缩成功: {compression_info['compression_ratio']:.1f}%")
+                            
+                            # ✅ 修复4: 删除旧文件（如果存在）
+                            if old_instance and old_instance.header_image:
+                                try:
+                                    old_instance.header_image.delete(save=False)
+                                except:
+                                    pass
+                            
+                            # 替换文件
+                            instance.header_image = compressed_file
+                        else:
+                            print(f"ℹ️ Material 头图无需压缩或压缩失败")
+                except Exception as e:
+                    print(f"⚠️ 读取头图文件失败: {str(e)}")
+                    # 继续使用原文件
                     
-                    # 保存压缩信息
-                    if not hasattr(instance, '_compression_data'):
-                        instance._compression_data = {}
-                    instance._compression_data['header_image'] = compression_info
-                    
-                    # 替换文件
-                    instance.header_image.save(
-                        compressed_file.name,
-                        compressed_file,
-                        save=False  # 不立即保存，等待主保存
-                    )
-                    
-            except Exception as e:
-                print(f"❌ Material 头图压缩失败: {str(e)}")
-        
-        # 处理 Material 的视频
-        if hasattr(instance, 'video') and instance.video:
-            try:
+        except Exception as e:
+            print(f"❌ Material 头图压缩失败: {str(e)}")
+            logger.error(f"Material header_image compression failed: {str(e)}", exc_info=True)
+    
+    # 处理 Material 的视频
+    if hasattr(instance, 'video') and instance.video:
+        try:
+            # 检查是否是新上传的文件
+            should_compress = False
+            
+            if old_instance is None:
+                should_compress = True
+            elif not old_instance.video:
+                should_compress = True
+            elif old_instance.video.name != instance.video.name:
+                should_compress = True
+            
+            if should_compress and hasattr(instance.video, 'file'):
                 print(f"🔍 开始压缩 Material 视频: {instance.video.name}")
                 
-                # 读取文件内容
-                instance.video.open('rb')
-                original_content = instance.video.read()
-                instance.video.close()
-                
-                print(f"🔍 读取视频内容: {len(original_content)} bytes")
-                
-                # 处理压缩
-                compressed_file, compression_info = FileCompressionManager.process_uploaded_file(
-                    original_content, 
-                    instance.video.name,
-                    'video'
-                )
-                
-                if compressed_file and compression_info:
-                    print(f"✅ Material 视频压缩成功: {compression_info['compression_ratio']:.1f}%")
+                try:
+                    if hasattr(instance.video.file, 'read'):
+                        instance.video.file.seek(0)
+                        original_content = instance.video.file.read()
+                        
+                        print(f"🔍 读取视频内容: {len(original_content)/1024/1024:.2f}MB")
+                        
+                        # 处理压缩
+                        compressed_file, compression_info = FileCompressionManager.process_uploaded_file(
+                            original_content, 
+                            instance.video.name,
+                            'video'
+                        )
+                        
+                        if compressed_file and compression_info:
+                            print(f"✅ Material 视频压缩成功: {compression_info['compression_ratio']:.1f}%")
+                            
+                            # 删除旧文件
+                            if old_instance and old_instance.video:
+                                try:
+                                    old_instance.video.delete(save=False)
+                                except:
+                                    pass
+                            
+                            # 替换文件
+                            instance.video = compressed_file
+                        else:
+                            print(f"ℹ️ Material 视频无需压缩或压缩失败")
+                except Exception as e:
+                    print(f"⚠️ 读取视频文件失败: {str(e)}")
                     
-                    # 保存压缩信息
-                    if not hasattr(instance, '_compression_data'):
-                        instance._compression_data = {}
-                    instance._compression_data['video'] = compression_info
-                    
-                    # 替换文件
-                    instance.video.save(
-                        compressed_file.name,
-                        compressed_file,
-                        save=False  # 不立即保存，等待主保存
-                    )
-                    
-            except Exception as e:
-                print(f"❌ Material 视频压缩失败: {str(e)}")
-        
-        # 处理 MaterialImage 的图片
-        if hasattr(instance, 'image') and instance.image:
-            try:
+        except Exception as e:
+            print(f"❌ Material 视频压缩失败: {str(e)}")
+            logger.error(f"Material video compression failed: {str(e)}", exc_info=True)
+    
+    # 处理 MaterialImage 的图片
+    if hasattr(instance, 'image') and instance.image:
+        try:
+            # 检查是否是新上传的文件
+            should_compress = False
+            
+            if old_instance is None:
+                should_compress = True
+            elif not old_instance.image:
+                should_compress = True
+            elif old_instance.image.name != instance.image.name:
+                should_compress = True
+            
+            if should_compress and hasattr(instance.image, 'file'):
                 print(f"🔍 开始压缩 MaterialImage 图片: {instance.image.name}")
                 
-                # 读取文件内容
-                instance.image.open('rb')
-                original_content = instance.image.read()
-                instance.image.close()
-                
-                print(f"🔍 读取图片内容: {len(original_content)} bytes")
-                
-                # 处理压缩
-                compressed_file, compression_info = FileCompressionManager.process_uploaded_file(
-                    original_content, 
-                    instance.image.name,
-                    'image'
-                )
-                
-                if compressed_file and compression_info:
-                    print(f"✅ MaterialImage 图片压缩成功: {compression_info['compression_ratio']:.1f}%")
+                try:
+                    if hasattr(instance.image.file, 'read'):
+                        instance.image.file.seek(0)
+                        original_content = instance.image.file.read()
+                        
+                        print(f"🔍 读取图片内容: {len(original_content)/1024/1024:.2f}MB")
+                        
+                        # 处理压缩
+                        compressed_file, compression_info = FileCompressionManager.process_uploaded_file(
+                            original_content, 
+                            instance.image.name,
+                            'image'
+                        )
+                        
+                        if compressed_file and compression_info:
+                            print(f"✅ MaterialImage 图片压缩成功: {compression_info['compression_ratio']:.1f}%")
+                            
+                            # 删除旧文件
+                            if old_instance and old_instance.image:
+                                try:
+                                    old_instance.image.delete(save=False)
+                                except:
+                                    pass
+                            
+                            # 替换文件
+                            instance.image = compressed_file
+                        else:
+                            print(f"ℹ️ MaterialImage 图片无需压缩")
+                except Exception as e:
+                    print(f"⚠️ 读取图片文件失败: {str(e)}")
                     
-                    # 保存压缩信息到关联的 Material
-                    if hasattr(instance, 'material') and instance.material:
-                        if not hasattr(instance.material, '_compression_data'):
-                            instance.material._compression_data = {}
-                        instance.material._compression_data[f'image_{instance.id}'] = compression_info
-                    
-                    # 替换文件
-                    instance.image.save(
-                        compressed_file.name,
-                        compressed_file,
-                        save=False  # 不立即保存，等待主保存
-                    )
-                    
-            except Exception as e:
-                print(f"❌ MaterialImage 图片压缩失败: {str(e)}")
-
+        except Exception as e:
+            print(f"❌ MaterialImage 图片压缩失败: {str(e)}")
+            logger.error(f"MaterialImage compression failed: {str(e)}", exc_info=True)
 
 
 # SupportTicket 创建后发送飞书通知
