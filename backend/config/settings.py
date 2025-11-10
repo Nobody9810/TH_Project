@@ -13,18 +13,25 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+# ===== 新增：导入环境变量管理 =====
+from decouple import config, Csv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+# ===== 修改：使用环境变量 =====
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$d6*-6++g#ssn#b_wr@gws62s)x03+cc27z25a=zx_pm05^#4i'
+SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-$d6*-6++g#ssn#b_wr@gws62s)x03+cc27z25a=zx_pm05^#4i')
 
+# ===== 修改：使用环境变量 =====
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+# ===== 修改：使用环境变量，支持多个域名 =====
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 
 # Application definition
@@ -41,8 +48,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
     'django_ckeditor_5',
-
-
 ]
 
 
@@ -170,7 +175,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-CORS_ALLOW_ALL_ORIGINS = True  # 开发模式允许所有前端访问
+
+# ===== 修改：CORS 配置根据 DEBUG 模式自动切换 =====
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True  # 开发模式允许所有前端访问
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
+
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'config.urls'
 
@@ -192,26 +205,30 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
+# ===== 修改：数据库配置使用环境变量 =====
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'TH_Project',
-        'USER': 'root',
-        'PASSWORD': '112233',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'NAME': config('DB_NAME', default='TH_Project'),
+        'USER': config('DB_USER', default='root'),
+        'PASSWORD': config('DB_PASSWORD', default='112233'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
     }
 }
 
 
-# Redis 缓存
+# ===== 修改：Redis 缓存使用环境变量 =====
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": config('REDIS_URL', default="redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -231,19 +248,17 @@ REST_FRAMEWORK = {
     ),
 }
 
-
-
-from datetime import timedelta
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
+# ===== 修改：静态文件配置 =====
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -262,71 +277,113 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'Asia/Kuala_Lumpur'  # 或者 'Asia/Shanghai'
+TIME_ZONE = 'Asia/Kuala_Lumpur'
 USE_TZ = True
-
 USE_I18N = True
-
-
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
-CORS_ALLOW_CREDENTIALS = True
-
+# ===== 媒体文件配置 =====
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# ===== PDF 字体配置 =====
 PDF_FONT_DIR = os.path.join(BASE_DIR, 'static/fonts')
 PDF_FONT_PATH = os.path.join(PDF_FONT_DIR, 'Alibaba-PuHuiTi-Regular.ttf')
 
 
-
-
-
 # ==================== Lark 飞书配置 ====================
-#Webhook URL（必填）
-LARK_WEBHOOK_URL = 'https://open.larksuite.com/open-apis/bot/v2/hook/7d463bd0-8b4c-4db3-b335-834ff450aa93'
+# ===== 修改：使用环境变量 =====
+LARK_WEBHOOK_URL = config('LARK_WEBHOOK_URL', default='https://open.larksuite.com/open-apis/bot/v2/hook/7d463bd0-8b4c-4db3-b335-834ff450aa93')
+LARK_WEBHOOK_SECRET = config('LARK_WEBHOOK_SECRET', default='your-secret-key')
+LARK_ENABLE_NOTIFICATIONS = config('LARK_ENABLE_NOTIFICATIONS', default=True, cast=bool)
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
-# 签名密钥（可选，如果启用了签名验证则必填）
-LARK_WEBHOOK_SECRET = 'your-secret-key'
 
-# 通知开关（开发环境可以设为 False）
-LARK_ENABLE_NOTIFICATIONS = True
-
-# 前端URL（用于构造详情链接）
-FRONTEND_URL = 'http://localhost:5173'
-# 或本地开发: FRONTEND_URL = 'http://localhost:3000'
-
-# 日志配置（可选）
+# ===== 修改：增强的日志配置 =====
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
         },
     },
-    'loggers': {
-        'api.lark_notification': {
-            'handlers': ['console'],
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
+    'handlers': {
+        'console': {
             'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file_error': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/django_error.log'),
+            'formatter': 'verbose',
+        },
+        'file_info': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/django_info.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file_error'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['file_error'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'api.lark_notification': {
+            'handlers': ['console', 'file_info'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }
+
+
+# ===== 新增：生产环境安全配置（仅在 DEBUG=False 时启用）=====
+if not DEBUG:
+    # HTTPS 设置
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # 安全头
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # HSTS (HTTP Strict Transport Security)
+    SECURE_HSTS_SECONDS = 31536000  # 1 年
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # 代理设置（如果使用 Nginx）
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

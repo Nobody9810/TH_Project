@@ -1,5 +1,24 @@
+# 1. Python 编译和缓存文件 (最重要！)
+**/*.pyc
+__pycache__/
+
+# 2. Django 静态文件和媒体文件 (必须忽略)
+backend/staticfiles/
 backend/static/
 backend/media/
-backend/staticfiles/
+backend/api/__pycache__/
+# 3. 敏感配置和虚拟环境
+backend/.env
+.env.production
+venv/
+
+# 4. 构建输出和日志
+frontend/dist/
+frontend/build/
+backend/logs/
+
+# 5. 其他不应被 Git 跟踪的文件
+requirements_frozen.txt
+gunicorn_config.py
+deploy.sh
 frontend/node_modules/
-backend/venv/

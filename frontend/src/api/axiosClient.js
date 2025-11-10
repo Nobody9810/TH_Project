@@ -1,10 +1,18 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  if (import.meta.env.PROD) {
+    return import.meta.env.VITE_API_URL || 'https://api.trippalholiday.com';
+  }
+  return '/api';
+};
+
 const axiosClient = axios.create({
-  baseURL: '/api',  // 通过 vite proxy 转发到 Django
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 });
 
 axiosClient.interceptors.request.use(config => {
