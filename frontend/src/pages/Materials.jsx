@@ -50,9 +50,9 @@ const MaterialCard = ({ material, onSelect }) => {
       badge: "from-purple-100 to-purple-200 text-purple-800"
     },
     transport: {
-      bg: "bg-gradient-to-r from-yellow-500 to-orange-500", 
+      bg: "bg-gradient-to-r from-yellow-500 to-orange-500",
       text: "text-white",
-      badge: "from-yellow-100 to-orange-200 text-orange-800" 
+      badge: "from-yellow-100 to-orange-200 text-orange-800"
     },
   };
   const style = typeStyles[material.material_type] || {};
@@ -181,7 +181,7 @@ const MaterialDetailModal = ({ material, onClose }) => {
         {/* 内容 */}
         <div className="p-6">
           {/* 视频展示 - 仅酒店类型显示 */}
-          {material.material_type === 'hotel' && videoUrl && (
+          {/* {material.material_type === 'hotel' && videoUrl && (
             <div className="mb-8">
               <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,18 +207,57 @@ const MaterialDetailModal = ({ material, onClose }) => {
 
               </div>
             </div>
+          )} */}
+          {material.videos?.length > 0 && (
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                视频库 ({material.videos.length} 个视频)
+              </h4>
+              <Swiper
+                modules={[Navigation, Pagination]}
+                spaceBetween={20}
+                slidesPerView={1}
+                navigation
+                pagination={{ clickable: true }}
+                className="rounded-2xl shadow-lg"
+              >
+                {material.videos.map((vid) => (
+                  <SwiperSlide key={vid.id}>
+                    <div className="bg-black rounded-2xl overflow-hidden">
+                      <video
+                        controls
+                        className="w-full h-auto max-h-96 object-contain"
+                        poster={vid.thumbnail ? getImageUrl(vid.thumbnail) : getImageUrl(material.header_image)}
+                      >
+                        <source src={getVideoUrl(vid.video)} type="video/mp4" />
+                        您的浏览器不支持视频播放。
+                      </video>
+                      {vid.title && (
+                        <div className="p-3 bg-gray-900 text-white">
+                          <p className="font-semibold">{vid.title}</p>
+                          {vid.description && <p className="text-sm text-gray-300 mt-1">{vid.description}</p>}
+                        </div>
+                      )}
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
           )}
 
           {/* 图片库 - 仅酒店类型显示 */}
-          {material.material_type === 'hotel' && material.images?.length > 0 && (
+
+          {material.images?.length > 0 && (
             <div className="mb-8">
               <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                酒店图库
+                图片库 ({material.images.length} 张图片)
               </h4>
-               {/* Swiper - react轮播图（carousel）plugin*/}
               <Swiper
                 modules={[Navigation, Pagination, Autoplay]}
                 spaceBetween={20}
@@ -227,22 +266,25 @@ const MaterialDetailModal = ({ material, onClose }) => {
                 pagination={{ clickable: true }}
                 autoplay={{ delay: 3000, disableOnInteraction: false }}
                 className="rounded-2xl shadow-lg"
-                key={`swiper-${Date.now()}`}
               >
                 {material.images.map((img) => (
                   <SwiperSlide key={img.id}>
                     <img
                       src={getImageUrl(img.image)}
-                      alt="gallery"
+                      alt={img.description || "素材图片"}
                       className="rounded-2xl object-cover w-full max-h-[400px] cursor-pointer"
                       loading="lazy"
                     />
+                    {img.description && (
+                      <div className="mt-2 text-center text-sm text-gray-600">
+                        {img.description}
+                      </div>
+                    )}
                   </SwiperSlide>
                 ))}
               </Swiper>
             </div>
           )}
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* 基本信息 */}
             <div className="lg:col-span-1">
@@ -369,7 +411,7 @@ export default function Materials() {
       .finally(() => {
         setLoading(false);
       });
- }, [query, selectedType, selectedDestination, refreshTimestamp]);
+  }, [query, selectedType, selectedDestination, refreshTimestamp]);
 
   useEffect(() => {
     fetchData();

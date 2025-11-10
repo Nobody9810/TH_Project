@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Destination, Material, MaterialImage, SupportTicket,UserProfile
+from .models import Destination, Material, MaterialImage, SupportTicket,UserProfile,MaterialVideo
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -29,6 +29,12 @@ class DestinationSerializer(serializers.ModelSerializer):
         model = Destination
         fields = ['id', 'name', 'slug']
 
+class MaterialVideoSerializer(serializers.ModelSerializer):
+    """✅ 新增: 素材视频序列化器"""
+    class Meta:
+        model = MaterialVideo
+        fields = ['id', 'video', 'title', 'description', 'thumbnail', 'order', 'duration']
+
 class MaterialImageSerializer(serializers.ModelSerializer):
     """素材图片序列化器"""
     class Meta:
@@ -53,40 +59,37 @@ class MaterialImageSerializer(serializers.ModelSerializer):
 
 
 class MaterialSerializer(serializers.ModelSerializer):
-    """素材序列化器"""
+    """✅ 修复: 素材序列化器 (支持多视频)"""
+    
+    # 嵌套 Serializer
+    destination = DestinationSerializer(read_only=True)
     images = MaterialImageSerializer(many=True, read_only=True)
+    videos = MaterialVideoSerializer(many=True, read_only=True) # ✅ 新增: 序列化 videos 数组
+
+    # 上传相关(保持不变)
     uploaded_images = serializers.ListField(
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
         write_only=True,
         required=False
     )
-    destination = DestinationSerializer(read_only=True)
-    images = MaterialImageSerializer(many=True, read_only=True)
-    # 返回 material_type 的可读名称，例如 "酒店" 而不是 "hotel"
+    
+    # 显示相关(保持不变)
     material_type_display = serializers.CharField(source='get_material_type_display', read_only=True)
     
     class Meta:
         model = Material
         fields = [
             'id', 'material_type', 'title', 'destination', 'description', 
-            'price', 'pdf_file', 'header_image', 'video', 'images', 
-            'uploaded_images', 'created_at', 'updated_at','material_type_display'
+            'price', 'pdf_file', 'header_image', 
+            'images', #
+            'videos', 
+            'uploaded_images', 
+            'created_at', 'updated_at','material_type_display'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-    def validate(self, data):
-        """验证视频字段只能用于酒店类型"""
-        material_type = data.get('material_type', self.instance.material_type if self.instance else None)
-        video = data.get('video')
-        
-        if video and material_type != Material.MaterialType.HOTEL:
-            raise serializers.ValidationError({
-                'video': '视频只能上传到酒店类型的素材'
-            })
-        
-        return data
-
     def create(self, validated_data):
+        # (这个 create 方法不需要修改，因为它只处理 uploaded_images)
         uploaded_images = validated_data.pop('uploaded_images', [])
         material = Material.objects.create(**validated_data)
         
@@ -97,6 +100,7 @@ class MaterialSerializer(serializers.ModelSerializer):
         return material
 
     def update(self, instance, validated_data):
+        # (这个 update 方法也不需要修改)
         uploaded_images = validated_data.pop('uploaded_images', [])
         
         # 更新素材基本信息

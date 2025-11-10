@@ -127,23 +127,18 @@ class VideoCompressionHandler:
             original_size = len(video_content)
             print(f"🔍 开始压缩视频: {filename}, 原始大小: {original_size/1024/1024:.2f}MB")
 
-            # ✅ 修复1: 创建独立的临时目录，避免与Django临时文件冲突
             temp_dir = tempfile.mkdtemp(prefix='video_compress_')
-            
-            # 创建输入文件路径
+
             input_ext = os.path.splitext(filename)[1]
             temp_input_path = os.path.join(temp_dir, f'input{input_ext}')
-            
-            # ✅ 修复2: 直接写入内容到我们自己的临时文件
+
             with open(temp_input_path, 'wb') as f:
                 f.write(video_content)
-            
-            # 创建输出文件路径
+
             temp_output_path = os.path.join(temp_dir, 'output.mp4')
 
-            # 构建ffmpeg命令
             cmd = [
-                'ffmpeg',  # ✅ 修复3: 使用系统PATH中的ffmpeg
+                'ffmpeg',  
                 '-i', temp_input_path,
                 '-vf', f'scale=min({max_width},iw):min({max_height},ih):force_original_aspect_ratio=decrease',
                 '-c:v', 'libx264',
@@ -157,44 +152,37 @@ class VideoCompressionHandler:
 
             print(f"🔍 执行FFmpeg命令: {' '.join(cmd)}")
 
-            # 执行压缩
             result = subprocess.run(
                 cmd, 
                 capture_output=True, 
                 text=True,
-                timeout=300  # ✅ 修复4: 添加5分钟超时
+                timeout=300  
             )
 
             if result.returncode != 0:
                 print(f"❌ 视频压缩命令执行失败: {result.stderr}")
                 raise Exception(f"FFmpeg error: {result.stderr}")
 
-            # ✅ 修复5: 检查输出文件是否存在
             if not os.path.exists(temp_output_path):
                 raise Exception("压缩后的文件未生成")
 
-            # 读取压缩后的内容
             with open(temp_output_path, 'rb') as f:
                 compressed_content = f.read()
 
             compressed_size = len(compressed_content)
 
-            # 检查压缩后的文件是否比原始文件大
             if compressed_size >= original_size:
                 print(f"⚠️ 视频压缩导致文件变大 ({compressed_size/1024/1024:.2f}MB >= {original_size/1024/1024:.2f}MB)。将使用原始文件。")
                 original_file = ContentFile(video_content)
                 original_file.name = filename
                 return original_file, None
 
-            # 只有当文件变小时才继续
             compression_ratio = (1 - compressed_size / original_size) * 100
             print(f"✅ 视频压缩完成: {original_size/1024/1024:.2f}MB -> {compressed_size/1024/1024:.2f}MB (压缩率: {compression_ratio:.1f}%)")
 
-            # 创建新的文件名
             name, ext = os.path.splitext(filename)
             compressed_filename = f"{name}_compressed.mp4"
 
-            # 创建ContentFile
             compressed_file = ContentFile(compressed_content)
             compressed_file.name = compressed_filename
 
@@ -328,6 +316,5 @@ def compress_uploaded_file(uploaded_file, file_type=None):
     except Exception as e:
         print(f"❌ 文件压缩处理失败: {str(e)}")
         traceback.print_exc()
-        # 返回原始文件
         uploaded_file.seek(0)
         return uploaded_file, None
