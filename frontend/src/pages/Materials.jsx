@@ -180,34 +180,6 @@ const MaterialDetailModal = ({ material, onClose }) => {
 
         {/* 内容 */}
         <div className="p-6">
-          {/* 视频展示 - 仅酒店类型显示 */}
-          {/* {material.material_type === 'hotel' && videoUrl && (
-            <div className="mb-8">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                酒店视频介绍
-              </h4>
-              <div className="bg-black rounded-2xl overflow-hidden shadow-lg">
-                <video
-                  key={`${videoUrl}?t=${Date.now()}`}
-                  controls
-                  className="w-full h-auto max-h-96 object-contain"
-                  poster={getImageUrl(material.header_image)}
-                >
-                  <source src={videoUrl} type="video/mp4" />
-                  <source src={videoUrl} type="video/webm" />
-                  <source src={videoUrl} type="video/ogg" />
-                  您的浏览器不支持视频播放。
-                </video>
-              </div>
-              <div className="mt-3 text-sm text-gray-600 flex items-center justify-between">
-                <span>点击播放视频了解酒店详情</span>
-
-              </div>
-            </div>
-          )} */}
           {material.videos?.length > 0 && (
             <div className="mb-8">
               <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
