@@ -184,6 +184,36 @@ from django.contrib import admin
 from django import forms
 from .models import Destination, Material, MaterialImage, MaterialVideo, SupportTicket, UserProfile  # ✅ 添加MaterialVideo
 from django_ckeditor_5.widgets import CKEditor5Widget
+from django.urls import path
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.forms.widgets import ClearableFileInput
+
+# 顶层自定义多文件选择控件，支持 multiple
+class AdminMultipleFileInput(ClearableFileInput):
+    allow_multiple_selected = True
+
+class MultipleFileField(forms.FileField):
+    """
+    接受多文件的表单字段，返回 UploadedFile 列表
+    """
+    widget = AdminMultipleFileInput
+    
+    def to_python(self, data):
+        if not data:
+            return []
+        # data 可能是单个文件或列表
+        if isinstance(data, (list, tuple)):
+            return [super().to_python(item) for item in data]
+        return [super().to_python(data)]
+    
+    def validate(self, data):
+        # data 为列表
+        if self.required and not data:
+            raise forms.ValidationError(self.error_messages['required'])
+        # 单个文件的校验
+        for item in data:
+            super().validate(item)
 
 
 class MaterialImageInline(admin.TabularInline):
@@ -203,6 +233,17 @@ class MaterialVideoInline(admin.TabularInline):
 
 
 class MaterialAdminForm(forms.ModelForm):
+    # 在新建/修改素材页面支持直接批量上传
+    uploaded_images = MultipleFileField(
+        widget=AdminMultipleFileInput(attrs={'multiple': True}),
+        required=False,
+        label="批量上传图片"
+    )
+    uploaded_videos = MultipleFileField(
+        widget=AdminMultipleFileInput(attrs={'multiple': True}),
+        required=False,
+        label="批量上传视频"
+    )
     class Meta:
         model = Material
         fields = '__all__'
@@ -211,6 +252,8 @@ class MaterialAdminForm(forms.ModelForm):
                 attrs={"class": "django_ckeditor_5"}, config_name="extends"
             )
         }
+    
+    # MultipleFileField 已处理为列表，不需要自定义 clean_
 
 
 class MaterialAdmin(admin.ModelAdmin):
@@ -219,11 +262,13 @@ class MaterialAdmin(admin.ModelAdmin):
     list_filter = ['material_type', 'destination', 'created_at']
     search_fields = ['title', 'description']
     readonly_fields = ['created_at', 'updated_at', 'compression_info']
+    change_form_template = 'admin/api/material/change_form.html'
     
     fieldsets = [
         ('类型选择', {'fields': ['material_type']}),
         ('基本信息', {'fields': ['title', 'destination', 'description', 'price', 'header_image']}),
         ('路线规划专属', {'fields': ['pdf_file'], 'description': '仅路线规划类型可用'}),
+        ('批量上传', {'fields': ['uploaded_images', 'uploaded_videos'], 'description': '可一次选择多个图片/视频文件'}),
         ('压缩信息', {'fields': ['compression_info'], 'classes': ['collapse']}),
         ('时间信息', {'fields': ['created_at', 'updated_at'], 'classes': ['collapse']}),
     ]
@@ -288,6 +333,107 @@ class MaterialAdmin(admin.ModelAdmin):
             new_fieldsets.append(fieldset)
         
         return new_fieldsets
+    
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """在详情页右上角添加批量上传按钮入口"""
+        extra_context = extra_context or {}
+        extra_context['additional_buttons'] = [
+            {
+                'url': f'../{object_id}/upload-images/',
+                'label': '批量上传图片'
+            },
+            {
+                'url': f'../{object_id}/upload-videos/',
+                'label': '批量上传视频'
+            }
+        ]
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    # ===== 批量上传到 Admin =====
+
+    class BatchImagesForm(forms.Form):
+        files = forms.FileField(widget=AdminMultipleFileInput(attrs={'multiple': True}), required=True, label="选择多个图片文件")
+
+    class BatchVideosForm(forms.Form):
+        files = forms.FileField(widget=AdminMultipleFileInput(attrs={'multiple': True}), required=True, label="选择多个视频文件")
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('<int:material_id>/upload-images/', self.admin_site.admin_view(self.upload_images_view), name='api_material_upload_images'),
+            path('<int:material_id>/upload-videos/', self.admin_site.admin_view(self.upload_videos_view), name='api_material_upload_videos'),
+        ]
+        return custom_urls + urls
+
+    def upload_images_view(self, request, material_id: int):
+        material = get_object_or_404(Material, pk=material_id)
+        if request.method == 'POST':
+            form = self.BatchImagesForm(request.POST, request.FILES)
+            files = request.FILES.getlist('files')
+            if files:
+                created = 0
+                for f in files:
+                    MaterialImage.objects.create(material=material, image=f)
+                    created += 1
+                messages.success(request, f'已成功上传 {created} 张图片。压缩将自动处理。')
+                return redirect(f'../../{material_id}/change/')
+        else:
+            form = self.BatchImagesForm()
+        context = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': f'批量上传图片: {material.title}',
+            'form': form,
+            'material': material,
+        }
+        return render(request, 'admin/batch_upload.html', context)
+
+    def upload_videos_view(self, request, material_id: int):
+        material = get_object_or_404(Material, pk=material_id)
+        if request.method == 'POST':
+            form = self.BatchVideosForm(request.POST, request.FILES)
+            files = request.FILES.getlist('files')
+            if files:
+                created = 0
+                for f in files:
+                    MaterialVideo.objects.create(material=material, video=f)
+                    created += 1
+                messages.success(request, f'已成功上传 {created} 个视频。压缩将自动处理。')
+                return redirect(f'../../{material_id}/change/')
+        else:
+            form = self.BatchVideosForm()
+        context = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': f'批量上传视频: {material.title}',
+            'form': form,
+            'material': material,
+        }
+        return render(request, 'admin/batch_upload.html', context)
+
+    def save_model(self, request, obj, form, change):
+        """
+        保存素材后，处理来自表单的批量上传文件（新建和修改页面均可用）
+        """
+        super().save_model(request, obj, form, change)
+        # 优先使用表单清洗后的数据
+        images = form.cleaned_data.get('uploaded_images') or []
+        if images:
+            created = 0
+            for f in images:
+                MaterialImage.objects.create(material=obj, image=f)
+                created += 1
+            if created:
+                messages.success(request, f'已批量上传 {created} 张图片。')
+        # 处理批量视频
+        videos = form.cleaned_data.get('uploaded_videos') or []
+        if videos:
+            created = 0
+            for f in videos:
+                MaterialVideo.objects.create(material=obj, video=f)
+                created += 1
+            if created:
+                messages.success(request, f'已批量上传 {created} 个视频。')
 
 
 class DestinationAdmin(admin.ModelAdmin):

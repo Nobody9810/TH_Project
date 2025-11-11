@@ -10,7 +10,9 @@ from .serializers import (
     UserSerializer,
     MaterialSerializer,
     DestinationSerializer,
-    SupportTicketSerializer 
+    SupportTicketSerializer,
+    MaterialImageSerializer,
+    MaterialVideoSerializer
 )
 from django.http import FileResponse, HttpResponse
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
@@ -133,6 +135,41 @@ class MaterialViewSet(viewsets.ModelViewSet):
             return response
         return Response(data)
 
+    @action(detail=True, methods=['post'], url_path='upload-images', permission_classes=[IsAuthenticated])
+    def upload_images(self, request, pk=None):
+        """
+        批量上传图片到指定素材:
+        - multipart/form-data with files[] multiple
+        - 自动触发压缩逻辑(通过 signals)
+        """
+        material = get_object_or_404(Material, pk=pk)
+        files = request.FILES.getlist('files')
+        if not files:
+            return Response({"detail": "未提供任何文件，参数名: files"}, status=status.HTTP_400_BAD_REQUEST)
+        created = []
+        from .models import MaterialImage
+        for f in files:
+            created.append(MaterialImage.objects.create(material=material, image=f))
+        serializer = MaterialImageSerializer(created, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='upload-videos', permission_classes=[IsAuthenticated])
+    def upload_videos(self, request, pk=None):
+        """
+        批量上传视频到指定素材:
+        - multipart/form-data with files[] multiple
+        - 自动触发压缩逻辑(通过 signals)
+        """
+        material = get_object_or_404(Material, pk=pk)
+        files = request.FILES.getlist('files')
+        if not files:
+            return Response({"detail": "未提供任何文件，参数名: files"}, status=status.HTTP_400_BAD_REQUEST)
+        created = []
+        from .models import MaterialVideo
+        for f in files:
+            created.append(MaterialVideo.objects.create(material=material, video=f))
+        serializer = MaterialVideoSerializer(created, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     @action(
         detail=True, 
         methods=['get'], 

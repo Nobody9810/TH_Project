@@ -419,6 +419,71 @@ def compress_files_before_save(sender, instance, **kwargs):
             logger.error(f"MaterialVideo compression failed: {str(e)}", exc_info=True)
 
 
+# ========= 文件清理: 删除数据库记录时同步删除物理文件 =========
+from django.db.models.signals import post_delete
+
+def _safe_delete_field_file(field_file):
+    try:
+        if field_file and hasattr(field_file, 'storage'):
+            field_file.delete(save=False)
+    except Exception:
+        pass
+
+@receiver(post_delete, sender=MaterialImage)
+def delete_material_image_file(sender, instance, **kwargs):
+    _safe_delete_field_file(instance.image)
+
+@receiver(post_delete, sender=MaterialVideo)
+def delete_material_video_file(sender, instance, **kwargs):
+    _safe_delete_field_file(instance.video)
+    _safe_delete_field_file(instance.thumbnail)
+
+@receiver(post_delete, sender=Material)
+def delete_material_files(sender, instance, **kwargs):
+    _safe_delete_field_file(instance.header_image)
+    _safe_delete_field_file(instance.pdf_file)
+
+# 如果用户资料头像在删除时也需要清理
+from .models import UserProfile
+
+@receiver(post_delete, sender=UserProfile)
+def delete_user_avatar_file(sender, instance, **kwargs):
+    _safe_delete_field_file(instance.avatar)
+
+# ========= 文件替换时清理旧文件(当未触发压缩也确保清理) =========
+def _delete_old_file_on_change(instance, sender, field_name):
+    try:
+        if not instance.pk:
+            return
+        old = sender.objects.filter(pk=instance.pk).first()
+        if not old:
+            return
+        old_file = getattr(old, field_name, None)
+        new_file = getattr(instance, field_name, None)
+        if old_file and new_file and old_file.name != new_file.name:
+            _safe_delete_field_file(old_file)
+    except Exception:
+        pass
+
+@receiver(pre_save, sender=Material)
+def cleanup_material_replaced_files(sender, instance, **kwargs):
+    _delete_old_file_on_change(instance, sender, 'header_image')
+    _delete_old_file_on_change(instance, sender, 'pdf_file')
+
+@receiver(pre_save, sender=MaterialImage)
+def cleanup_materialimage_replaced_files(sender, instance, **kwargs):
+    _delete_old_file_on_change(instance, sender, 'image')
+
+@receiver(pre_save, sender=MaterialVideo)
+def cleanup_materialvideo_replaced_files(sender, instance, **kwargs):
+    _delete_old_file_on_change(instance, sender, 'video')
+    _delete_old_file_on_change(instance, sender, 'thumbnail')
+
+@receiver(pre_save, sender=UserProfile)
+def cleanup_userprofile_replaced_avatar(sender, instance, **kwargs):
+    _delete_old_file_on_change(instance, sender, 'avatar')
+
+
 # SupportTicket 创建后发送飞书通知
 def get_user_display_name(user):
     """获取用户显示名称(优先使用真实姓名)"""

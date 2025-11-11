@@ -72,6 +72,11 @@ class MaterialSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
+    uploaded_videos = serializers.ListField(
+        child=serializers.FileField(max_length=200000, allow_empty_file=False, use_url=False),
+        write_only=True,
+        required=False
+    )
     
     # 显示相关(保持不变)
     material_type_display = serializers.CharField(source='get_material_type_display', read_only=True)
@@ -83,25 +88,31 @@ class MaterialSerializer(serializers.ModelSerializer):
             'price', 'pdf_file', 'header_image', 
             'images', #
             'videos', 
-            'uploaded_images', 
+            'uploaded_images',
+            'uploaded_videos',
             'created_at', 'updated_at','material_type_display'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
     def create(self, validated_data):
-        # (这个 create 方法不需要修改，因为它只处理 uploaded_images)
+        # (扩展: 同时处理 uploaded_images 与 uploaded_videos)
         uploaded_images = validated_data.pop('uploaded_images', [])
+        uploaded_videos = validated_data.pop('uploaded_videos', [])
         material = Material.objects.create(**validated_data)
         
         # 创建关联的图片
         for image in uploaded_images:
             MaterialImage.objects.create(material=material, image=image)
+        # 创建关联的视频
+        for video in uploaded_videos:
+            MaterialVideo.objects.create(material=material, video=video)
         
         return material
 
     def update(self, instance, validated_data):
-        # (这个 update 方法也不需要修改)
+        # (扩展: 同时处理 uploaded_images 与 uploaded_videos)
         uploaded_images = validated_data.pop('uploaded_images', [])
+        uploaded_videos = validated_data.pop('uploaded_videos', [])
         
         # 更新素材基本信息
         for attr, value in validated_data.items():
@@ -111,6 +122,9 @@ class MaterialSerializer(serializers.ModelSerializer):
         # 添加新图片
         for image in uploaded_images:
             MaterialImage.objects.create(material=instance, image=image)
+        # 添加新视频
+        for video in uploaded_videos:
+            MaterialVideo.objects.create(material=instance, video=video)
         
         return instance
 

@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+  <div class="module">
+    <h2>{{ title }}</h2>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <fieldset class="module aligned">
+        {{ form.as_p }}
+      </fieldset>
+      <div class="submit-row">
+        <input type="submit" class="default" value="{% trans 'Upload' %}">
+        <a href="../change/" class="button">{% trans 'Back' %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+
