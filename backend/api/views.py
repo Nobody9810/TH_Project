@@ -418,32 +418,81 @@ class MaterialViewSet(viewsets.ModelViewSet):
         """
 
         # ===== 4. 关键：link_callback 处理资源（字体和图片）=====
+        # def link_callback(uri, rel):
+        #     """
+        #     将URL转换为文件系统路径
+        #     这是让 xhtml2pdf 找到字体和图片的关键！
+        #     """
+        #     # 处理字体文件
+        #     if uri.startswith('file://'):
+        #         return uri.replace('file://', '')
+            
+        #     # 处理图片
+        #     if uri.startswith('http://') or uri.startswith('https://'):
+        #         if '/media/' in uri:
+        #             file_path = uri.split('/media/')[-1]
+        #             full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        #         else:
+        #             return uri
+        #     elif uri.startswith('/media/'):
+        #         file_path = uri.replace('/media/', '')
+        #         full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        #     else:
+        #         return uri
+            
+        #     if os.path.exists(full_path):
+        #         return full_path
+        #     else:
+        #         print(f"⚠️ 文件未找到: {full_path}")
+        #         return uri
         def link_callback(uri, rel):
             """
             将URL转换为文件系统路径
-            这是让 xhtml2pdf 找到字体和图片的关键！
+            这是让 xhtml2pdf 找到字体和图片的关键!
             """
-            # 处理字体文件
+            # 1️⃣ 处理字体文件(必须在最前面)
             if uri.startswith('file://'):
                 return uri.replace('file://', '')
             
-            # 处理图片
+            # 2️⃣ 处理完整URL的图片(从CKEditor来的)
             if uri.startswith('http://') or uri.startswith('https://'):
+                # 提取/media/后面的路径
                 if '/media/' in uri:
-                    file_path = uri.split('/media/')[-1]
+                    # 使用split获取最后一个/media/后的内容
+                    file_path = uri.split('/media/', 1)[-1]  # 只分割一次
                     full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+                    
+                    # 调试:打印路径信息
+                    print(f"🔍 处理URL: {uri}")
+                    print(f"📁 提取路径: {file_path}")
+                    print(f"💾 完整路径: {full_path}")
+                    print(f"✅ 文件存在: {os.path.exists(full_path)}")
+                    
+                    if os.path.exists(full_path):
+                        return full_path
+                    else:
+                        print(f"⚠️ 文件未找到: {full_path}")
+                        return uri
                 else:
+                    # 外部URL,直接返回
                     return uri
+            
+            # 3️⃣ 处理相对路径的图片
             elif uri.startswith('/media/'):
                 file_path = uri.replace('/media/', '')
                 full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-            else:
-                return uri
+                
+                print(f"🔍 处理相对路径: {uri}")
+                print(f"💾 完整路径: {full_path}")
+                
+                if os.path.exists(full_path):
+                    return full_path
+                else:
+                    print(f"⚠️ 文件未找到: {full_path}")
+                    return uri
             
-            if os.path.exists(full_path):
-                return full_path
+            # 4️⃣ 其他情况,直接返回原URI
             else:
-                print(f"⚠️ 文件未找到: {full_path}")
                 return uri
 
         # ===== 5. 生成 PDF =====
