@@ -28,7 +28,9 @@ from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
 from xhtml2pdf import pisa
 import re
-
+from weasyprint import HTML, CSS
+from weasyprint.text.fonts import FontConfiguration
+from django.template.loader import render_to_string
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
@@ -170,28 +172,25 @@ class MaterialViewSet(viewsets.ModelViewSet):
             created.append(MaterialVideo.objects.create(material=material, video=f))
         serializer = MaterialVideoSerializer(created, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(
-        detail=True, 
-        methods=['get'], 
-        url_path='download-pdf',
-        permission_classes=[AllowAny])
-
-
+    detail=True, 
+    methods=['get'], 
+    url_path='download-pdf',  # ✅ 使用新的 URL
+    permission_classes=[AllowAny])
     def download_pdf(self, request, pk=None):
-        """使用 xhtml2pdf 高保真导出素材详情为 PDF（支持酒店图库和CKEditor内容）"""
+        """
+        使用 WeasyPrint 生成 PDF（支持 emoji 表情）
+        """
         material = get_object_or_404(Material, pk=pk)
-
-
+        
+        # 如果是路线类型且已有上传的 PDF
         if material.material_type == 'route' and material.pdf_file:
             filename = f"{material.get_material_type_display()}_{material.title}_{material.id}.pdf"
-            # 清理文件名
             filename = re.sub(r'[<>:"/\\|?*]', '', filename).strip()
-            
-            # 使用 URL 编码处理中文文件名
             from urllib.parse import quote
             encoded_filename = quote(filename)
             
-            # 返回上传的PDF文件
             response = FileResponse(
                 material.pdf_file.open('rb'), 
                 content_type='application/pdf'
@@ -206,51 +205,56 @@ class MaterialViewSet(viewsets.ModelViewSet):
         
         # 获取字体的绝对路径
         font_abs_path = os.path.abspath(font_path)
-
-        # ===== 2. 准备数据 =====
-        site_url = request.build_absolute_uri('/')[:-1]
-        header_img_url = site_url + material.header_image.url if material.header_image else None
         
-        # 获取酒店图库
-        gallery_images = []
-        if material.material_type == 'hotel':
-            gallery_images = [
-                {
-                    'url': site_url + img.image.url,
-                    'description': img.description or ''
-                } 
-                for img in material.images.all()
-            ]
+        # ===== 准备数据 =====
+        site_url = request.build_absolute_uri('/')[:-1]
+        
+         # ✅ 获取头图 URL(第一张图片)
+        header_image_url = None
+        first_image = material.images.first()
+        if first_image:
+            header_image_url = site_url + first_image.image.url
 
-        # 处理CKEditor内容 - 确保图片路径完整
+        # 处理描述中的图片路径
         description_html = material.description or ''
         if description_html:
             description_html = description_html.replace('src="/media/', f'src="{site_url}/media/')
             description_html = description_html.replace("src='/media/", f"src='{site_url}/media/")
+        
 
-        # ===== 3. 构造 HTML 模板（使用绝对路径的字体）=====
-        html = f"""
+        gallery_images = [
+        {
+            'url': site_url + img.image.url,
+            'description': img.description or ''
+            } 
+            for img in material.images.all()[1:]  # [1:] 跳过第一张
+            ]
+        
+        # ===== 构造 HTML 内容 =====
+        html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+            <meta charset="UTF-8">
             <style>
                 @page {{
                     size: A4;
                     margin: 2cm 1.5cm;
                 }}
-                @font-face {{
+                 @font-face {{
                     font-family: ChineseFont;
                     src: url("file://{font_abs_path}");
                 }}
                 * {{
                     font-family: ChineseFont;
                 }}
+
                 body {{
                     color: #222;
                     line-height: 1.6;
                     font-size: 11pt;
                 }}
+                
                 h1 {{
                     color: #2C3E50;
                     font-size: 20pt;
@@ -258,6 +262,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
                     border-bottom: 3px solid #3498db;
                     padding-bottom: 8px;
                 }}
+                
                 h2 {{
                     color: #34495E;
                     font-size: 14pt;
@@ -266,17 +271,14 @@ class MaterialViewSet(viewsets.ModelViewSet):
                     margin-top: 25px;
                     margin-bottom: 12px;
                 }}
-                h3 {{
-                    color: #555;
-                    font-size: 12pt;
-                    margin-top: 15px;
-                }}
+                
                 img {{
                     max-width: 100%;
                     height: auto;
                     margin: 10px 0;
                     border-radius: 6px;
                 }}
+                
                 .header-image {{
                     width: 85%;
                     height: 500px;
@@ -285,6 +287,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
                     margin-bottom: 20px;
                     display: block;
                 }}
+                
                 .info-box {{
                     background: #f8f9fa;
                     border-left: 4px solid #3498db;
@@ -292,24 +295,40 @@ class MaterialViewSet(viewsets.ModelViewSet):
                     margin: 15px 0;
                     border-radius: 4px;
                 }}
+                
                 .info-box p {{
                     margin: 5px 0;
                 }}
+                
                 .gallery {{
                     margin-top: 20px;
                 }}
+                
                 .gallery-item {{
                     margin-bottom: 20px;
                     page-break-inside: avoid;
                 }}
+                
                 .gallery-item img {{
                     width: 85%;
                     height: 400px;
                     object-fit: cover;
-                    border: 0px solid #ddd;
                     border-radius: 6px;
                     display: block;
                 }}
+                
+                .gallery-item p {{
+                    font-size: 9pt;
+                    color: #666;
+                    margin-top: 5px;
+                    font-style: italic;
+                }}
+                
+                .description {{
+                    margin-top: 20px;
+                    text-align: justify;
+                }}
+                
                 .description img {{
                     width: 100%;
                     height: 180px;
@@ -318,53 +337,13 @@ class MaterialViewSet(viewsets.ModelViewSet):
                     margin: 15px 0;
                     display: block;
                 }}
-                .gallery-item p {{
-                    font-size: 9pt;
-                    color: #666;
-                    margin-top: 5px;
-                    font-style: italic;
-                }}
-                .description {{
-                    margin-top: 20px;
-                    text-align: justify;
-                }}
-                .description p {{
-                    margin: 8px 0;
-                }}
-                .description ul, .description ol {{
-                    margin: 10px 0;
-                    padding-left: 25px;
-                }}
-                .description li {{
-                    margin: 5px 0;
-                }}
-                .description table {{
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 15px 0;
-                }}
-                .description table td, .description table th {{
-                    border: 1px solid #ddd;
-                    padding: 8px;
-                    font-size: 10pt;
-                }}
-                .description table th {{
-                    background-color: #f2f2f2;
+                
+                .price {{
+                    color: #e74c3c;
+                    font-size: 13pt;
                     font-weight: bold;
                 }}
-                .description blockquote {{
-                    border-left: 3px solid #ccc;
-                    padding-left: 15px;
-                    color: #666;
-                    font-style: italic;
-                    margin: 15px 0;
-                }}
-                .description strong {{
-                    font-weight: bold;
-                }}
-                .description em {{
-                    font-style: italic;
-                }}
+                
                 .footer {{
                     margin-top: 40px;
                     padding-top: 15px;
@@ -372,25 +351,20 @@ class MaterialViewSet(viewsets.ModelViewSet):
                     font-size: 9pt;
                     color: #999;
                 }}
-                .price {{
-                    color: #e74c3c;
-                    font-size: 13pt;
-                    font-weight: bold;
-                }}
             </style>
         </head>
         <body>
             <h1>{material.get_material_type_display()}素材</h1>
             <h2>{material.title}</h2>
-            {f'<img src="{header_img_url}" class="header-image" />' if header_img_url else ''}
+            
+            {f'<img src="{site_url + material.header_image.url}" class="header-image" />' if material.header_image else ''}
+            
             <div class="info-box">
-                <p><strong>素材类型：</strong> {material.get_material_type_display()}</p>
-                <p><strong>目的地：</strong> {material.destination.name if material.destination else '通用'}</p>
-                <p><strong>创建时间：</strong> {material.created_at.strftime('%Y年%m月%d日 %H:%M')}</p>
-                {f'<p><strong>价格：</strong> <span class="price">RM {material.price:.2f}</span></p>' if material.price else ''}
+                <p><strong>素材类型:</strong> {material.get_material_type_display()}</p>
+                <p><strong>目的地:</strong> {material.destination.name if material.destination else '通用'}</p>
+                <p><strong>创建时间:</strong> {material.created_at.strftime('%Y年%m月%d日 %H:%M')}</p>
+                {f'<p><strong>价格:</strong> <span class="price">RM {material.price:.2f}</span></p>' if material.price else ''}
             </div>
-
-   
 
             <h2>详细描述</h2>
             <div class="description">
@@ -398,7 +372,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
             </div>
 
             {f'''
-            <h2>酒店图库 ({len(gallery_images)} 张图片)</h2>
+            <h2>素材库 ({len(gallery_images)} 张图片)</h2>
             <div class="gallery">
                 {"".join([f"""
                 <div class="gallery-item">
@@ -410,118 +384,37 @@ class MaterialViewSet(viewsets.ModelViewSet):
             ''' if gallery_images else ''}
 
             <div class="footer">
-                <p>生成时间：{timezone.now().strftime('%Y年%m月%d日 %H:%M:%S')}</p>
+                <p>生成时间: {timezone.now().strftime('%Y年%m月%d日 %H:%M:%S')}</p>
                 <p>本文档由系统自动生成</p>
             </div>
         </body>
         </html>
         """
-
-        # ===== 4. 关键：link_callback 处理资源（字体和图片）=====
-        # def link_callback(uri, rel):
-        #     """
-        #     将URL转换为文件系统路径
-        #     这是让 xhtml2pdf 找到字体和图片的关键！
-        #     """
-        #     # 处理字体文件
-        #     if uri.startswith('file://'):
-        #         return uri.replace('file://', '')
-            
-        #     # 处理图片
-        #     if uri.startswith('http://') or uri.startswith('https://'):
-        #         if '/media/' in uri:
-        #             file_path = uri.split('/media/')[-1]
-        #             full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-        #         else:
-        #             return uri
-        #     elif uri.startswith('/media/'):
-        #         file_path = uri.replace('/media/', '')
-        #         full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-        #     else:
-        #         return uri
-            
-        #     if os.path.exists(full_path):
-        #         return full_path
-        #     else:
-        #         print(f"⚠️ 文件未找到: {full_path}")
-        #         return uri
-        def link_callback(uri, rel):
-            """
-            将URL转换为文件系统路径
-            这是让 xhtml2pdf 找到字体和图片的关键!
-            """
-            # 1️⃣ 处理字体文件(必须在最前面)
-            if uri.startswith('file://'):
-                return uri.replace('file://', '')
-            
-            # 2️⃣ 处理完整URL的图片(从CKEditor来的)
-            if uri.startswith('http://') or uri.startswith('https://'):
-                # 提取/media/后面的路径
-                if '/media/' in uri:
-                    # 使用split获取最后一个/media/后的内容
-                    file_path = uri.split('/media/', 1)[-1]  # 只分割一次
-                    full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-                    
-                    # 调试:打印路径信息
-                    print(f"🔍 处理URL: {uri}")
-                    print(f"📁 提取路径: {file_path}")
-                    print(f"💾 完整路径: {full_path}")
-                    print(f"✅ 文件存在: {os.path.exists(full_path)}")
-                    
-                    if os.path.exists(full_path):
-                        return full_path
-                    else:
-                        print(f"⚠️ 文件未找到: {full_path}")
-                        return uri
-                else:
-                    # 外部URL,直接返回
-                    return uri
-            
-            # 3️⃣ 处理相对路径的图片
-            elif uri.startswith('/media/'):
-                file_path = uri.replace('/media/', '')
-                full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-                
-                print(f"🔍 处理相对路径: {uri}")
-                print(f"💾 完整路径: {full_path}")
-                
-                if os.path.exists(full_path):
-                    return full_path
-                else:
-                    print(f"⚠️ 文件未找到: {full_path}")
-                    return uri
-            
-            # 4️⃣ 其他情况,直接返回原URI
-            else:
-                return uri
-
-        # ===== 5. 生成 PDF =====
-        response = HttpResponse(content_type='application/pdf')
-        # 文件名格式：类型+标题+ID
-        filename = f"{material.get_material_type_display()}_{material.title}_{material.id}.pdf"
-        # 清理文件名中的特殊字符，但保留中文
-        filename = re.sub(r'[<>:"/\\|?*]', '', filename).strip()
         
-        # 使用 URL 编码处理中文文件名（支持各种浏览器）
-        from urllib.parse import quote
-        encoded_filename = quote(filename)
-        
-        # RFC 5987 标准格式，兼容所有浏览器
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
-
-        # 创建PDF - 关键参数
-        pisa_status = pisa.CreatePDF(
-            html.encode('UTF-8'),  # 明确编码为 UTF-8
-            dest=response,
-            link_callback=link_callback,  # 使用 callback 处理资源
-            encoding='UTF-8'
-        )
-
-        if pisa_status.err:
-            print(f"❌ PDF生成错误: {pisa_status.err}")
-            return HttpResponse("PDF生成失败，请查看日志", status=500)
-
-        return response
+        # ===== 使用 WeasyPrint 生成 PDF =====
+        try:
+            # ✅ 配置字体支持
+            font_config = FontConfiguration()
+            
+            # ✅ 生成 PDF
+            html = HTML(string=html_content, base_url=site_url)
+            pdf_content = html.write_pdf(font_config=font_config)
+            
+            # ✅ 返回响应
+            response = HttpResponse(pdf_content, content_type='application/pdf')
+            filename = f"{material.get_material_type_display()}_{material.title}_{material.id}.pdf"
+            filename = re.sub(r'[<>:"/\\|?*]', '', filename).strip()
+            from urllib.parse import quote
+            encoded_filename = quote(filename)
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ WeasyPrint PDF生成错误: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return HttpResponse(f"PDF生成失败: {str(e)}", status=500)
 
 
 
