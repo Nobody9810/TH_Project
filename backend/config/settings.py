@@ -231,8 +231,9 @@ CACHES = {
         "LOCATION": config('REDIS_URL', default="redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
-        "TIMEOUT": 60 * 60 * 24,
+        },
+        # ✅ THIS IS THE IMPORTANT PART
+        "TIMEOUT": 60 * 60 * 24,  # <-- Set this to match SESSION_COOKIE_AGE (e.g., 1 day)
     }
 }
 
