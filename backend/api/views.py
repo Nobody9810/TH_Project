@@ -26,7 +26,7 @@ from io import BytesIO
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
-from xhtml2pdf import pisa
+
 import re
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
