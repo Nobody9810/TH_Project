@@ -266,8 +266,8 @@ class SupportTicket(models.Model):
     is_public_faq = models.BooleanField(default=False, verbose_name="公开到知识库")
     
     class Meta:
-        verbose_name = "支持工单/问答"
-        verbose_name_plural = "支持工单/问答库"
+        verbose_name = "问答"
+        verbose_name_plural = "问答库"
         ordering = ['-created_at']
 
     def __str__(self):

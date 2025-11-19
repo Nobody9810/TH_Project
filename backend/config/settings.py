@@ -37,6 +37,9 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv(
 # Application definition
 
 INSTALLED_APPS = [
+    "unfold",  
+    "unfold.contrib.filters",  # 可选：高级过滤器
+    "unfold.contrib.forms",  # 可选：表单增强
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -258,7 +261,10 @@ SIMPLE_JWT = {
 # ===== 修改：静态文件配置 =====
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
+STATICFILES_DIRS = [
+    BASE_DIR / 'static', # 这告诉 Django 去项目根目录下的 'static' 文件夹查找
+    # 注意：如果你的 'static' 文件夹不在 BASE_DIR 下，请根据实际情况修改路径
+]
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
@@ -389,3 +395,146 @@ if not DEBUG:
     
     # 代理设置（如果使用 Nginx）
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
+
+
+# ==================== Unfold 配置 ====================
+# 在 settings.py 文件末尾添加
+
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+
+UNFOLD = {
+    # 网站基本信息
+    "SITE_TITLE": "素材管理系统",
+    "SITE_HEADER": "素材库后台",
+    "SITE_URL": "http://trippalholiday.my",
+    
+    # 网站图标
+    "SITE_ICON": {
+        "light": lambda request: static("images/logo.svg"),
+        "dark": lambda request: static("images/logo.svg"),
+    },
+    
+    # 侧边栏配置
+    "SIDEBAR": {
+        "show_search": True,  # 显示搜索框
+        "show_all_applications": False,  # 使用自定义导航
+        "navigation": [
+            {
+                "title": _("仪表盘"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("首页"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                ],
+            },
+            {
+                "title": _("素材管理"),
+                "separator": True,
+             
+                "items": [
+                    {
+                        "title": _("素材库"),
+                        "icon": "layers",
+                        "link": reverse_lazy("admin:api_material_changelist"),
+                    },
+                    {
+                        "title": _("目的地"),
+                        "icon": "map",
+                        "link": reverse_lazy("admin:api_destination_changelist"),
+                    },
+                    {
+                        "title": _("总图片库"),
+                        "icon": "image",
+                        "link": reverse_lazy("admin:api_materialimage_changelist"),
+                    },
+                    {
+                        "title": _("总视频库"),
+                        "icon": "video_library",
+                        "link": reverse_lazy("admin:api_materialvideo_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("问答管理"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("问答库"),
+                        "icon": "book",
+                        "link": reverse_lazy("admin:api_supportticket_changelist"),
+
+                    },
+                ],
+            },
+            {
+                "title": _("系统管理"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("用户"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": _("用户资料"),
+                        "icon": "circle",
+                        "link": reverse_lazy("admin:api_userprofile_changelist"),
+                    },
+                    {
+                        "title": _("权限组"),
+                        "icon": "lock",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+    # 主题颜色 (可选 - 使用紫色主题)
+    "COLORS": {
+        "primary": {
+            "50": "250 245 255",
+            "100": "243 232 255",
+            "200": "233 213 255",
+            "300": "216 180 254",
+            "400": "192 132 252",
+            "500": "168 85 247",   # 主色调
+            "600": "147 51 234",
+            "700": "126 34 206",
+            "800": "107 33 168",
+            "900": "88 28 135",
+        },
+    },
+    
+    # 标签页配置 (在详情页显示相关内容的标签)
+    "TABS": [
+        {
+            "models": [
+                "api.material",
+            ],
+            "items": [
+                {
+                    "title": _("基本信息"),
+                    "link": reverse_lazy("admin:api_material_changelist"),
+                },
+                {
+                    "title": _("图片管理"),
+                    "link": reverse_lazy("admin:api_materialimage_changelist"),
+                },
+                {
+                    "title": _("视频管理"),
+                    "link": reverse_lazy("admin:api_materialvideo_changelist"),
+                },
+            ],
+        },
+    ],
+}
+
+
