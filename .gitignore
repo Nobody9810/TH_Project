@@ -1,7 +1,7 @@
 # 1. Python 编译和缓存文件 (最重要！)
 **/*.pyc
 __pycache__/
-
+*.pyc
 # 2. Django 静态文件和媒体文件 (必须忽略)
 backend/staticfiles/
 backend/static/
