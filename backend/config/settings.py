@@ -187,6 +187,12 @@ else:
     CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
 
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = [
+    # 根据你的前端运行端口进行修改
+    "http://localhost:5173", 
+    "http://127.0.0.1:8000",
+    # ... 其他前端地址 ...
+]
 
 ROOT_URLCONF = 'config.urls'
 
