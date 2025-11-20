@@ -171,15 +171,20 @@ class MaterialAdmin(ModelAdmin):  # ✅ 改用 Unfold 的 ModelAdmin
             obj.get_material_type_display()
         )
     
-    @display(description="价格", ordering="price")
+    @admin.display(description="价格", ordering="price")
     def show_price(self, obj):
         """价格显示"""
-        if obj.price:
+        if obj.price is not None:
+            # ✅ 正确做法：先使用 f-string 或 str.format() 格式化数字，得到一个普通字符串
+            formatted_price = f"RM {obj.price:.2f}"
+            
+            # 将格式化后的字符串作为参数传递给 format_html (模板中只留一个空的 {})
             return format_html(
-                '<span style="color: #ef4444; font-weight: 600; font-size: 14px;">'
-                'RM {:.2f}</span>',
-                obj.price
+                '<span style="color: #ef4444; font-weight: 600; font-size: 14px;">{}</span>',
+                formatted_price
             )
+        
+        # 确保返回的也是 format_html (保持一致性)
         return format_html('<span style="color: #9ca3af;">-</span>')
     
     @display(description="媒体")

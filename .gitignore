@@ -12,7 +12,7 @@ backend/api/migrations/
 # 3. 敏感配置和虚拟环境
 backend/.env
 .env.production
-venv/
+backend/venv/
 
 # 4. 构建输出和日志
 frontend/dist/
