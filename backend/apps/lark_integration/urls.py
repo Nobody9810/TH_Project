@@ -9,11 +9,11 @@ from .views import (
 
 urlpatterns = [    
     # Lark 登录相关路由（简化版）
-    path('lark/', LarkAuthInitiateView.as_view(), name='lark_auth'),
-    path('lark/callback/', LarkAuthCallbackView.as_view(), name='lark_callback'),
-    path('lark/status/', LarkAuthStatusView.as_view(), name='lark_status'),
-    path('lark/user/', LarkUserInfoView.as_view(), name='lark_user_info'),
+    path('', LarkAuthInitiateView.as_view(), name='lark_auth'),
+    path('callback/', LarkAuthCallbackView.as_view(), name='lark_callback'),
+    path('status/', LarkAuthStatusView.as_view(), name='lark_status'),
+    path('user/', LarkUserInfoView.as_view(), name='lark_user_info'),
     
     # 调试接口（仅DEBUG模式）
-    path('lark/test/', LarkTestView.as_view(), name='lark_test'),
+    path('test/', LarkTestView.as_view(), name='lark_test'),
 ]
