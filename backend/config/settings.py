@@ -184,20 +184,44 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# ===== 修改：CORS 配置根据 DEBUG 模式自动切换 =====
+# ================== CORS 配置 ==================
+CORS_ALLOW_CREDENTIALS = True
 if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True  # 开发模式允许所有前端访问
+    CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
 
-CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = [
-    # 根据你的前端运行端口进行修改
-    "http://localhost:5173", 
-    "http://127.0.0.1:8000",
-    # ... 其他前端地址 ...
-]
+# CSRF trusted
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+
+# ================== Session 配置 ==================
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+SESSION_COOKIE_AGE = 60 * 60 * 24  # 1天
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# 根据环境设置安全 Cookie
+if DEBUG:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+else:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'  # 跨域时可改为 'None'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
 
 ROOT_URLCONF = 'config.urls'
 
@@ -238,7 +262,7 @@ DATABASES = {
 }
 
 
-# ===== 修改：Redis 缓存使用环境变量 =====
+# ===== Redis 缓存使用环境变量 =====
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -246,16 +270,9 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-        # ✅ THIS IS THE IMPORTANT PART
-        "TIMEOUT":  60 * 60 * 24 ,  # <-- Set this to match SESSION_COOKIE_AGE (e.g., 1 day)
+        "TIMEOUT": SESSION_COOKIE_AGE,
     }
 }
-
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
-SESSION_COOKIE_AGE = 60 * 60 * 24   # 登录有效期 1 天
-SESSION_SAVE_EVERY_REQUEST = True      # 每次请求自动续期
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # 关闭浏览器不清除
 
 # REST Framework + JWT 配置
 REST_FRAMEWORK = {
@@ -401,28 +418,6 @@ LOGGING = {
         },
     },
 }
-
-
-# ===== 新增：生产环境安全配置（仅在 DEBUG=False 时启用）=====
-if not DEBUG:
-    # HTTPS 设置
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    
-    # 安全头
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    
-    # HSTS (HTTP Strict Transport Security)
-    SECURE_HSTS_SECONDS = 31536000  # 1 年
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    
-    # 代理设置（如果使用 Nginx）
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
 
 
 
