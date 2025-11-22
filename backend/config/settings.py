@@ -31,7 +31,7 @@ SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-$d6*-6++g#ssn#
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 # ===== 修改：使用环境变量，支持多个域名 =====
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.100.15', cast=Csv())
 
 
 # Application definition
@@ -49,8 +49,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'api',
+    # 'api',
+    #apps
+    'apps.users',
+    'apps.materials',
+    'apps.support',
     'django_ckeditor_5',
+
 ]
 
 
@@ -242,12 +247,15 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
         # ✅ THIS IS THE IMPORTANT PART
-        "TIMEOUT": 60 * 60 * 24,  # <-- Set this to match SESSION_COOKIE_AGE (e.g., 1 day)
+        "TIMEOUT":  60 * 60 * 24 ,  # <-- Set this to match SESSION_COOKIE_AGE (e.g., 1 day)
     }
 }
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
+SESSION_COOKIE_AGE = 60 * 60 * 24   # 登录有效期 1 天
+SESSION_SAVE_EVERY_REQUEST = True      # 每次请求自动续期
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # 关闭浏览器不清除
 
 # REST Framework + JWT 配置
 REST_FRAMEWORK = {
@@ -260,8 +268,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
 # ===== 修改：静态文件配置 =====
@@ -311,10 +319,23 @@ PDF_FONT_PATH = os.path.join(PDF_FONT_DIR, 'Alibaba-PuHuiTi-Regular.ttf')
 
 # ==================== Lark 飞书配置 ====================
 # ===== 修改：使用环境变量 =====
-LARK_WEBHOOK_URL = config('LARK_WEBHOOK_URL', default='https://open.larksuite.com/open-apis/bot/v2/hook/7d463bd0-8b4c-4db3-b335-834ff450aa93')
-LARK_WEBHOOK_SECRET = config('LARK_WEBHOOK_SECRET', default='your-secret-key')
+LARK_WEBHOOK_URL = config('LARK_WEBHOOK_URL', default=True)
+LARK_WEBHOOK_SECRET = config('LARK_WEBHOOK_SECRET', default=True)
 LARK_ENABLE_NOTIFICATIONS = config('LARK_ENABLE_NOTIFICATIONS', default=True, cast=bool)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+
+# Lark OAuth 登录配置
+LARK_APP_ID = config('LARK_APP_ID', default='')
+LARK_APP_SECRET = config('LARK_APP_SECRET', default='')
+LARK_REDIRECT_URI = config('LARK_REDIRECT_URI', default='http://localhost:5173/auth/lark/callback')
+
+# Lark API 端点配置
+LARK_CONFIG = {
+    'OPEN_API_HOST': 'https://open.larksuite.com',
+    'AUTH_URL': 'https://open.larksuite.com/open-apis/authen/v1/authorize',
+    'TOKEN_URL': 'https://open.larksuite.com/open-apis/authen/v1/oidc/access_token',
+    'USER_INFO_URL': 'https://open.larksuite.com/open-apis/authen/v1/user_info',
+}
 
 
 # ===== 修改：增强的日志配置 =====
@@ -413,12 +434,12 @@ from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
 UNFOLD = {
-    # 网站基本信息
+    # 网站基本信息 (保持不变)
     "SITE_TITLE": "素材管理系统",
     "SITE_HEADER": "素材库后台",
     "SITE_URL": "http://trippalholiday.my",
     
-    # 网站图标
+    # 网站图标 (保持不变)
     "SITE_ICON": {
         "light": lambda request: static("images/logo.svg"),
         "dark": lambda request: static("images/logo.svg"),
@@ -426,8 +447,8 @@ UNFOLD = {
     
     # 侧边栏配置
     "SIDEBAR": {
-        "show_search": True,  # 显示搜索框
-        "show_all_applications": False,  # 使用自定义导航
+        "show_search": True,
+        "show_all_applications": False,
         "navigation": [
             {
                 "title": _("仪表盘"),
@@ -447,23 +468,27 @@ UNFOLD = {
                 "items": [
                     {
                         "title": _("素材库"),
+                        # 已经是 materials_material_changelist (正确)
                         "icon": "layers",
-                        "link": reverse_lazy("admin:api_material_changelist"),
+                        "link": reverse_lazy("admin:materials_material_changelist"), 
                     },
                     {
                         "title": _("目的地"),
                         "icon": "map",
-                        "link": reverse_lazy("admin:api_destination_changelist"),
+                        # ❌ 修复：Destination 属于 materials app
+                        "link": reverse_lazy("admin:materials_destination_changelist"), 
                     },
                     {
                         "title": _("总图片库"),
                         "icon": "image",
-                        "link": reverse_lazy("admin:api_materialimage_changelist"),
+                        # ❌ 修复：MaterialImage 属于 materials app
+                        "link": reverse_lazy("admin:materials_materialimage_changelist"),
                     },
                     {
                         "title": _("总视频库"),
                         "icon": "video_library",
-                        "link": reverse_lazy("admin:api_materialvideo_changelist"),
+                        # ❌ 修复：MaterialVideo 属于 materials app
+                        "link": reverse_lazy("admin:materials_materialvideo_changelist"),
                     },
                 ],
             },
@@ -474,7 +499,8 @@ UNFOLD = {
                     {
                         "title": _("问答库"),
                         "icon": "book",
-                        "link": reverse_lazy("admin:api_supportticket_changelist"),
+                        # ❌ 修复：SupportTicket 属于 support app
+                        "link": reverse_lazy("admin:support_supportticket_changelist"), 
 
                     },
                 ],
@@ -487,23 +513,27 @@ UNFOLD = {
                     {
                         "title": _("用户"),
                         "icon": "group",
-                        "link": reverse_lazy("admin:auth_user_changelist"),
+                        # auth_user 是 Django 内置的，保持不变 (正确)
+                        "link": reverse_lazy("admin:auth_user_changelist"), 
                     },
                     {
                         "title": _("用户资料"),
                         "icon": "circle",
-                        "link": reverse_lazy("admin:api_userprofile_changelist"),
+                        # ❌ 修复：UserProfile 属于 users app
+                        "link": reverse_lazy("admin:users_userprofile_changelist"),
                     },
                     {
                         "title": _("权限组"),
                         "icon": "lock",
+                        # auth_group 是 Django 内置的，保持不变 (正确)
                         "link": reverse_lazy("admin:auth_group_changelist"),
                     },
                 ],
             },
         ],
     },
-    # 主题颜色 (可选 - 使用紫色主题)
+    
+    # 主题颜色 (保持不变)
     "COLORS": {
         "primary": {
             "50": "250 245 255",
@@ -511,7 +541,7 @@ UNFOLD = {
             "200": "233 213 255",
             "300": "216 180 254",
             "400": "192 132 252",
-            "500": "168 85 247",   # 主色调
+            "500": "168 85 247",
             "600": "147 51 234",
             "700": "126 34 206",
             "800": "107 33 168",
@@ -519,28 +549,27 @@ UNFOLD = {
         },
     },
     
-    # 标签页配置 (在详情页显示相关内容的标签)
+    # 标签页配置
     "TABS": [
         {
             "models": [
-                "api.material",
+                # ❌ 修复：模型引用改为新的 app.model 格式
+                "materials.material",
             ],
             "items": [
                 {
                     "title": _("基本信息"),
-                    "link": reverse_lazy("admin:api_material_changelist"),
+                    "link": reverse_lazy("admin:materials_material_changelist"),
                 },
                 {
                     "title": _("图片管理"),
-                    "link": reverse_lazy("admin:api_materialimage_changelist"),
+                    "link": reverse_lazy("admin:materials_materialimage_changelist"),
                 },
                 {
                     "title": _("视频管理"),
-                    "link": reverse_lazy("admin:api_materialvideo_changelist"),
+                    "link": reverse_lazy("admin:materials_materialvideo_changelist"),
                 },
             ],
         },
     ],
 }
-
-

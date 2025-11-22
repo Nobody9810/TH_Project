@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import AvatarDisplay from './AvatarDisplay';
-import logo from "../assets/logo.jpg";
+import logo from "/public/logo.jpg";
 const Header = ({ title, subtitle = true, user: propUser }) => {
   const navigate = useNavigate();
   const location = useLocation();

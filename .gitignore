@@ -10,8 +10,7 @@ backend/api/__pycache__/
 backend/api/migrations/
 
 # 3. 敏感配置和虚拟环境
-backend/.env
-.env.production
+.env
 backend/venv/
 
 # 4. 构建输出和日志
@@ -20,7 +19,5 @@ frontend/build/
 backend/logs/
 
 # 5. 其他不应被 Git 跟踪的文件
-requirements_frozen.txt
-gunicorn_config.py
-deploy.sh
+requirements.txt
 frontend/node_modules/
