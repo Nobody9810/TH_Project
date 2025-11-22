@@ -1,12 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
-import logo from "../assets/logo.jpg";
+import logo from "/public/logo.jpg";
+
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [larkEnabled, setLarkEnabled] = useState(false);
 
+  // 检查Lark登录配置
+  useEffect(() => {
+    const checkLarkConfig = async () => {
+      try {
+        const response = await axiosClient.get('auth/lark/status/');
+        setLarkEnabled(response.data.lark_login_enabled);
+      } catch (err) {
+        console.error('检查Lark配置失败:', err);
+      }
+    };
+    checkLarkConfig();
+  }, []);
+
+  // 传统用户名密码登录
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -24,25 +40,67 @@ export default function Login() {
     }
   };
 
+  // Lark登录
+  const handleLarkLogin = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await axiosClient.get('auth/lark/');
+      const { auth_url } = response.data;
+      
+      // 重定向到Lark授权页面
+      window.location.href = auth_url;
+    } catch (err) {
+      setError('飞书登录发起失败，请稍后重试');
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      {/* 主卡片 */}
       <div className="max-w-md w-full">
         {/* Logo和标题区域 */}
         <div className="text-center mb-8">
-          
-            <img
-              src={logo}
-              alt="Cherry Go Logo"
-              className="mx-auto w-25 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4"
-            />
-
+          <img
+            src={logo}
+            alt="Cherry Go Logo"
+            className="mx-auto w-25 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4"
+          />
           <h1 className="text-3xl font-bold text-gray-900 mb-2">TH 企业平台</h1>
           <p className="text-gray-600">素材库 & 知识库管理系统</p>
         </div>
 
         {/* 登录表单卡片 */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
+          {/* Lark登录按钮（如果可用） */}
+          {larkEnabled && (
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={handleLarkLogin}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-blue-500 rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"/>
+                </svg>
+                使用飞书登录
+              </button>
+
+              {/* 分割线 */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">或使用账号密码</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 传统登录表单 */}
           <form onSubmit={handleLogin} className="space-y-6">
             {/* 用户名输入 */}
             <div>
