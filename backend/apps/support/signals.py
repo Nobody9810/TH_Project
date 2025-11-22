@@ -5,7 +5,8 @@ from django.core.files.base import ContentFile
 import logging
 from django.utils import timezone
 from django.conf import settings
-from lark_integration.services import lark_notifier
+from ..lark_integration.services import lark_notifier
+from .models import SupportTicket
 import subprocess
 import shutil
 from PIL import Image

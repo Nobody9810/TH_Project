@@ -24,14 +24,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ===== 修改：使用环境变量 =====
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-$d6*-6++g#ssn#b_wr@gws62s)x03+cc27z25a=zx_pm05^#4i')
+SECRET_KEY = config('DJANGO_SECRET_KEY')
 
 # ===== 修改：使用环境变量 =====
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 # ===== 修改：使用环境变量，支持多个域名 =====
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.100.15', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 
 # Application definition
@@ -319,7 +319,7 @@ PDF_FONT_PATH = os.path.join(PDF_FONT_DIR, 'Alibaba-PuHuiTi-Regular.ttf')
 
 # ==================== Lark 飞书配置 ====================
 # ===== 修改：使用环境变量 =====
-LARK_WEBHOOK_URL = config('LARK_WEBHOOK_URL', default=True)
+LARK_WEBHOOK_URL = config('LARK_WEBHOOK_URL', default="https://open.larksuite.com/open-apis/bot/v2/hook/caf8cb57-9af4-40ee-a472-a2b414af642c")
 LARK_WEBHOOK_SECRET = config('LARK_WEBHOOK_SECRET', default=True)
 LARK_ENABLE_NOTIFICATIONS = config('LARK_ENABLE_NOTIFICATIONS', default=True, cast=bool)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
