@@ -196,11 +196,14 @@ else:
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
 
 # ================== Session 配置 ==================
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# 使用 cached_db 后端：先尝试缓存，失败时回退到数据库，更稳定
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 60 * 60 * 24  # 1天
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_HTTPONLY = True  # 防止XSS攻击，所有环境都应启用
+SESSION_COOKIE_NAME = 'sessionid'  # 明确设置session cookie名称
 
 # 根据环境设置安全 Cookie
 if DEBUG:
@@ -211,7 +214,6 @@ if DEBUG:
 else:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'  # 跨域时可改为 'None'
     CSRF_COOKIE_SAMESITE = 'Lax'
     SECURE_SSL_REDIRECT = True
@@ -269,8 +271,22 @@ CACHES = {
         "LOCATION": config('REDIS_URL', default="redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # 设置连接池参数，提高稳定性
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": 50,
+                "retry_on_timeout": True,
+            },
+            # 设置socket连接超时
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            # 启用压缩
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            # 设置键前缀
+            "KEY_PREFIX": "django_cache",
         },
-        "TIMEOUT": SESSION_COOKIE_AGE,
+        # 移除TIMEOUT设置，让session自己管理过期时间
+        # 如果必须设置，使用None表示永不过期（由SESSION_COOKIE_AGE控制）
+        "TIMEOUT": None,
     }
 }
 
